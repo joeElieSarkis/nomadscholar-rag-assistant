@@ -1,0 +1,11 @@
+gradio
+langchain
+langchain-community
+langchain-chroma
+langchain-google-genai
+chromadb
+sentence-transformers
+easyocr
+python-dotenv
+pydantic
+pypdf
