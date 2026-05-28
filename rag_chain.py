@@ -2,11 +2,12 @@ import os
 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_core.prompts import ChatPromptTemplate
 
-from prompts import SYSTEM_PROMPT, ANSWER_TEMPLATE
+from prompts import ANSWER_TEMPLATE, SYSTEM_PROMPT
+from structured_outputs import ApplicationChecklist
 
 
 load_dotenv()
@@ -117,14 +118,39 @@ def answer_question(question, history=None, image_text=""):
     }
 
 
+def extract_application_checklist(text):
+    """
+    Extract deadline, documents, eligibility notes, missing information,
+    and next steps from application-related text.
+    """
+    llm = get_llm()
+    structured_llm = llm.with_structured_output(ApplicationChecklist)
+
+    prompt = f"""
+You are extracting structured information from scholarship or university application text.
+
+Rules:
+- Do not invent deadlines.
+- Do not invent required documents.
+- If a field is not mentioned, leave it empty or null.
+- If the text is unclear, list what is missing in missing_information.
+- Keep next_steps practical and short.
+
+Text:
+{text}
+"""
+
+    return structured_llm.invoke(prompt)
+
+
 if __name__ == "__main__":
-    test_question = "What documents do I need for a DAAD scholarship?"
+    test_text = """
+    Applicants must submit academic transcripts, a CV, a motivation letter,
+    two recommendation letters, and proof of English or German language proficiency.
+    The application deadline is 15 January 2026.
+    """
 
-    result = answer_question(test_question)
+    checklist = extract_application_checklist(test_text)
 
-    print("\nAnswer:")
-    print(result["answer"])
-
-    print("\nSources:")
-    for source in result["sources"]:
-        print(f"- {source}")
+    print("\nStructured checklist:")
+    print(checklist.model_dump_json(indent=2))
