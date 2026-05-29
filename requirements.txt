@@ -10,3 +10,4 @@ easyocr
 python-dotenv
 pydantic
 pypdf
+opencv-python
