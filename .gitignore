@@ -27,3 +27,7 @@ Thumbs.db
 *.mp4
 *.mov
 *.avi
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
