@@ -348,9 +348,77 @@ function App() {
             </button>
 
             {checklistResult && (
-              <pre className="json-output">
-                {JSON.stringify(checklistResult, null, 2)}
-              </pre>
+              <div className="checklist-result">
+                {checklistResult.error ? (
+                  <div className="result-error">{checklistResult.error}</div>
+                ) : (
+                  <>
+                    <div className="result-card deadline-card">
+                      <span className="result-label">Deadline</span>
+                      <strong>{checklistResult.deadline || "Not mentioned"}</strong>
+                    </div>
+
+                    <div className="result-card">
+                      <span className="result-label">Required documents</span>
+                      {checklistResult.required_documents?.length > 0 ? (
+                        <ul className="clean-list">
+                          {checklistResult.required_documents.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="empty-result">No required documents detected.</p>
+                      )}
+                    </div>
+
+                    <div className="result-card">
+                      <span className="result-label">Eligibility notes</span>
+                      {checklistResult.eligibility_notes?.length > 0 ? (
+                        <ul className="clean-list">
+                          {checklistResult.eligibility_notes.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="empty-result">No eligibility notes detected.</p>
+                      )}
+                    </div>
+
+                    <div className="result-card">
+                      <span className="result-label">Missing information</span>
+                      {checklistResult.missing_information?.length > 0 ? (
+                        <ul className="warning-list">
+                          {checklistResult.missing_information.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="empty-result">No major missing information detected.</p>
+                      )}
+                    </div>
+
+                    <div className="result-card">
+                      <span className="result-label">Next steps</span>
+                      {checklistResult.next_steps?.length > 0 ? (
+                        <ol className="step-list">
+                          {checklistResult.next_steps.map((item) => (
+                            <li key={item}>{item}</li>
+                          ))}
+                        </ol>
+                      ) : (
+                        <p className="empty-result">No next steps generated.</p>
+                      )}
+                    </div>
+
+                    <details className="raw-json">
+                      <summary>View raw structured JSON</summary>
+                      <pre className="json-output">
+                        {JSON.stringify(checklistResult, null, 2)}
+                      </pre>
+                    </details>
+                  </>
+                )}
+              </div>
             )}
           </div>
         </section>
