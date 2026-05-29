@@ -11,3 +11,6 @@ python-dotenv
 pydantic
 pypdf
 opencv-python
+fastapi
+uvicorn
+python-multipart
