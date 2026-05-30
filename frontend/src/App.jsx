@@ -8,7 +8,7 @@ const DEFAULT_MESSAGES = [
   {
     role: "assistant",
     content:
-      "Hi, I’m NomadScholar AI. Ask me about scholarships, admissions, required documents, deadlines, or upload a screenshot of application requirements.",
+      "Hi, I’m NomadScholar AI. Ask me about scholarships, admissions, required documents, deadlines, or upload a screenshot/PDF of application requirements.",
     sources: [],
   },
 ];
@@ -84,9 +84,10 @@ function createChatTitle(messages) {
   if (
     text.includes("screenshot") ||
     text.includes("image") ||
-    text.includes("uploaded")
+    text.includes("uploaded") ||
+    text.includes("pdf")
   ) {
-    return "Screenshot analysis";
+    return "File analysis";
   }
 
   if (text.includes("documents") || text.includes("requirements")) {
@@ -165,7 +166,7 @@ function App() {
   const [chats, setChats] = useState(savedState.chats);
   const [activeChatId, setActiveChatId] = useState(savedState.activeChatId);
   const [question, setQuestion] = useState("");
-  const [image, setImage] = useState(null);
+  const [file, setFile] = useState(null);
   const [checklistText, setChecklistText] = useState("");
   const [checklistResult, setChecklistResult] = useState(null);
   const [loadingChatId, setLoadingChatId] = useState(null);
@@ -193,7 +194,7 @@ function App() {
 
   function clearDraftState() {
     setQuestion("");
-    setImage(null);
+    setFile(null);
   }
 
   function switchChat(chatId) {
@@ -315,19 +316,19 @@ function App() {
     return response.json();
   }
 
-  async function sendImageQuestion(finalQuestion) {
+  async function sendFileQuestion(finalQuestion, currentFile) {
     const formData = new FormData();
     formData.append("question", finalQuestion);
-    formData.append("image", image);
+    formData.append("file", currentFile);
 
-    const response = await fetch(`${API_BASE_URL}/api/chat-with-image`, {
+    const response = await fetch(`${API_BASE_URL}/api/chat-with-file`, {
       method: "POST",
       body: formData,
     });
 
     if (!response.ok) {
       const errorData = await response.json();
-      throw new Error(errorData.detail || "Failed to process image.");
+      throw new Error(errorData.detail || "Failed to process file.");
     }
 
     return response.json();
@@ -338,17 +339,23 @@ function App() {
 
     const finalQuestion = question.trim();
 
-    if (!finalQuestion && !image) {
+    if (!finalQuestion && !file) {
       return;
     }
 
     const chatIdForRequest = activeChatId;
+    const fileForRequest = file;
 
     const userMessage = {
       role: "user",
-      content: finalQuestion || "Please explain the uploaded image.",
+      content: finalQuestion || "Please explain the uploaded file.",
       sources: [],
-      imagePreview: image ? URL.createObjectURL(image) : null,
+      imagePreview:
+        fileForRequest && fileForRequest.type.startsWith("image/")
+          ? URL.createObjectURL(fileForRequest)
+          : null,
+      fileName: fileForRequest ? fileForRequest.name : null,
+      fileType: fileForRequest ? fileForRequest.type : null,
     };
 
     const messagesWithUserQuestion = [...messages, userMessage];
@@ -359,8 +366,8 @@ function App() {
     setLoadingChatId(chatIdForRequest);
 
     try {
-      const data = image
-        ? await sendImageQuestion(finalQuestion)
+      const data = fileForRequest
+        ? await sendFileQuestion(finalQuestion, fileForRequest)
         : await sendTextQuestion(finalQuestion, messagesWithUserQuestion);
 
       const assistantMessage = {
@@ -524,9 +531,9 @@ function App() {
             retrieved sources.
           </h2>
           <p>
-            Ask in English or Arabic. Upload screenshots of requirements,
-            deadlines, or checklists. Get clear answers, source references, and
-            structured next steps.
+            Ask in English or Arabic. Upload screenshots, PDFs, deadlines, or
+            checklists. Get clear answers, source references, and structured next
+            steps.
           </p>
         </section>
 
@@ -535,7 +542,7 @@ function App() {
             <div className="section-header">
               <div>
                 <h3>Assistant</h3>
-                <p>Conversational RAG with optional image input</p>
+                <p>Conversational RAG with optional image/PDF input</p>
               </div>
               <span>RAG chat</span>
             </div>
@@ -571,6 +578,15 @@ function App() {
                             className="message-image-preview"
                           />
                         </button>
+                      )}
+
+                      {message.fileName && !message.imagePreview && (
+                        <div className="message-file-preview">
+                          <span className="file-icon">
+                            {message.fileType === "application/pdf" ? "PDF" : "FILE"}
+                          </span>
+                          <span>{message.fileName}</span>
+                        </div>
                       )}
 
                       <div
@@ -610,21 +626,21 @@ function App() {
             </div>
 
             <form className="chat-form" onSubmit={handleSubmit}>
-              {image && (
+              {file && (
                 <div className="selected-file-preview">
-                  <span>{image.name}</span>
-                  <button type="button" onClick={() => setImage(null)}>
+                  <span>{file.name}</span>
+                  <button type="button" onClick={() => setFile(null)}>
                     Remove
                   </button>
                 </div>
               )}
 
               <div className="composer">
-                <label className="composer-attach-button" title="Attach image">
+                <label className="composer-attach-button" title="Attach image or PDF">
                   <input
                     type="file"
-                    accept="image/png,image/jpeg,image/jpg"
-                    onChange={(event) => setImage(event.target.files[0] || null)}
+                    accept="image/png,image/jpeg,image/jpg,application/pdf"
+                    onChange={(event) => setFile(event.target.files[0] || null)}
                   />
                   ＋
                 </label>

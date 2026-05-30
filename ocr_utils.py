@@ -1,5 +1,6 @@
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from pypdf import PdfReader
 
 import cv2
 import easyocr
@@ -77,3 +78,22 @@ def extract_text_from_image(image_path, languages=None):
     extracted_text = "\n".join(results).strip()
 
     return extracted_text
+
+
+def extract_text_from_pdf(file_path):
+    """
+    Extract selectable text from a digital PDF.
+
+    This works for normal PDFs that contain text.
+    Scanned PDFs may require OCR page rendering, which is listed as a future improvement.
+    """
+    reader = PdfReader(file_path)
+    extracted_pages = []
+
+    for page_number, page in enumerate(reader.pages, start=1):
+        page_text = page.extract_text() or ""
+
+        if page_text.strip():
+            extracted_pages.append(f"[Page {page_number}]\n{page_text.strip()}")
+
+    return "\n\n".join(extracted_pages).strip()

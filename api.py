@@ -1,3 +1,6 @@
+import os
+import tempfile
+
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 from typing import List, Optional
@@ -6,7 +9,7 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from ocr_utils import extract_text_from_image
+from ocr_utils import extract_text_from_image, extract_text_from_pdf
 from rag_chain import answer_question, extract_application_checklist
 
 
@@ -129,6 +132,69 @@ async def chat_with_image(
         raise HTTPException(status_code=500, detail=str(error)) from error
 
 
+@app.post("/api/chat-with-file", response_model=ChatResponse)
+async def chat_with_file(
+    question: str = Form(""),
+    file: UploadFile = File(...),
+):
+    """
+    Answer a question using either an uploaded image or a PDF.
+
+    Images are processed with OCR.
+    Digital PDFs are processed with text extraction.
+    """
+    allowed_image_types = {"image/png", "image/jpeg", "image/jpg"}
+    allowed_pdf_types = {"application/pdf"}
+
+    content_type = file.content_type or ""
+
+    if content_type not in allowed_image_types and content_type not in allowed_pdf_types:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported file type. Please upload a PNG, JPG, JPEG, or PDF file.",
+        )
+
+    suffix = Path(file.filename or "").suffix.lower()
+
+    if not suffix:
+        if content_type == "application/pdf":
+            suffix = ".pdf"
+        else:
+            suffix = ".png"
+
+    with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as temp_file:
+        temp_file.write(await file.read())
+        temp_path = temp_file.name
+
+    try:
+        if content_type in allowed_pdf_types or suffix == ".pdf":
+            extracted_text = extract_text_from_pdf(temp_path)
+
+            if not extracted_text:
+                extracted_text = (
+                    "No selectable text was found in this PDF. "
+                    "It may be a scanned PDF, which requires OCR page rendering."
+                )
+        else:
+            extracted_text = extract_text_from_image(temp_path)
+
+        final_question = question.strip() or "Please explain the uploaded file."
+
+        result = answer_question(
+            question=final_question,
+            image_text=extracted_text,
+        )
+
+        return ChatResponse(
+            answer=result["answer"],
+            sources=result["sources"],
+        )
+
+    finally:
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+            
 @app.post("/api/checklist")
 def checklist(request: ChecklistRequest):
     if not request.text.strip():

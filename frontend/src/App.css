@@ -624,6 +624,39 @@ button:disabled {
   cursor: zoom-in;
 }
 
+.message-file-preview {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  max-width: 280px;
+  margin-bottom: 0.65rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 0.8rem;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  color: inherit;
+}
+
+.file-icon {
+  display: inline-grid;
+  place-items: center;
+  height: 1.8rem;
+  width: 2.4rem;
+  border-radius: 0.45rem;
+  background: rgba(255, 255, 255, 0.2);
+  font-size: 0.66rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.message-file-preview span:last-child {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-size: 0.82rem;
+}
+
 /* Sources */
 
 .sources {
