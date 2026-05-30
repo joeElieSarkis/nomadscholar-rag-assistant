@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
@@ -8,7 +8,7 @@ const DEFAULT_MESSAGES = [
   {
     role: "assistant",
     content:
-      "Hi, I’m NomadScholar AI. Ask me about scholarships, admissions, required documents, deadlines, or upload a screenshot/PDF of application requirements.",
+      "Hi, I’m NomadScholar AI. Ask me about scholarships, admissions, required documents, deadlines, or upload a screenshot of application requirements.",
     sources: [],
   },
 ];
@@ -29,6 +29,7 @@ function isLowQualityTitle(text) {
   }
 
   const hasEnoughLetters = /[a-zA-Z\u0600-\u06FF]{4,}/.test(cleaned);
+
   return !hasEnoughLetters;
 }
 
@@ -84,10 +85,9 @@ function createChatTitle(messages) {
   if (
     text.includes("screenshot") ||
     text.includes("image") ||
-    text.includes("uploaded") ||
-    text.includes("pdf")
+    text.includes("uploaded")
   ) {
-    return "File analysis";
+    return "Screenshot analysis";
   }
 
   if (text.includes("documents") || text.includes("requirements")) {
@@ -163,16 +163,21 @@ function loadSavedChats() {
 function App() {
   const savedState = loadSavedChats();
 
+  const abortControllerRef = useRef(null);
+
   const [chats, setChats] = useState(savedState.chats);
   const [activeChatId, setActiveChatId] = useState(savedState.activeChatId);
   const [question, setQuestion] = useState("");
-  const [file, setFile] = useState(null);
+  const [image, setImage] = useState(null);
   const [checklistText, setChecklistText] = useState("");
   const [checklistResult, setChecklistResult] = useState(null);
   const [loadingChatId, setLoadingChatId] = useState(null);
   const [checklistLoading, setChecklistLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [editingMessageIndex, setEditingMessageIndex] = useState(null);
+  const [editingText, setEditingText] = useState("");
+  const [copiedMessageKey, setCopiedMessageKey] = useState(null);
 
   const activeChat =
     chats.find((chat) => chat.id === activeChatId) || chats[0];
@@ -194,12 +199,18 @@ function App() {
 
   function clearDraftState() {
     setQuestion("");
-    setFile(null);
+    setImage(null);
+  }
+
+  function clearEditingState() {
+    setEditingMessageIndex(null);
+    setEditingText("");
   }
 
   function switchChat(chatId) {
     setActiveChatId(chatId);
     clearDraftState();
+    clearEditingState();
   }
 
   function updateChatMessages(chatId, nextMessages, moveToTop = false) {
@@ -237,6 +248,7 @@ function App() {
     );
 
     clearDraftState();
+    clearEditingState();
     setChecklistResult(null);
 
     if (!hasUserMessages) {
@@ -259,12 +271,14 @@ function App() {
         const newChat = createNewChat();
         setActiveChatId(newChat.id);
         clearDraftState();
+        clearEditingState();
         return [newChat];
       }
 
       if (chatIdToDelete === activeChatId) {
         setActiveChatId(remainingChats[0].id);
         clearDraftState();
+        clearEditingState();
       }
 
       return remainingChats;
@@ -296,12 +310,13 @@ function App() {
     return history;
   }
 
-  async function sendTextQuestion(finalQuestion, currentMessages) {
+  async function sendTextQuestion(finalQuestion, currentMessages, signal) {
     const response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
+      signal,
       body: JSON.stringify({
         question: finalQuestion,
         history: buildHistory(currentMessages),
@@ -316,14 +331,15 @@ function App() {
     return response.json();
   }
 
-  async function sendFileQuestion(finalQuestion, currentFile) {
+  async function sendFileQuestion(finalQuestion, signal) {
     const formData = new FormData();
     formData.append("question", finalQuestion);
-    formData.append("file", currentFile);
+    formData.append("file", image);
 
     const response = await fetch(`${API_BASE_URL}/api/chat-with-file`, {
       method: "POST",
       body: formData,
+      signal,
     });
 
     if (!response.ok) {
@@ -334,41 +350,42 @@ function App() {
     return response.json();
   }
 
-  async function handleSubmit(event) {
-    event.preventDefault();
-
-    const finalQuestion = question.trim();
-
-    if (!finalQuestion && !file) {
-      return;
+  function getFriendlyErrorMessage(error) {
+    if (error.name === "AbortError") {
+      return "Response stopped.";
     }
 
-    const chatIdForRequest = activeChatId;
-    const fileForRequest = file;
+    if (
+      error.message.includes("RESOURCE_EXHAUSTED") ||
+      error.message.includes("429")
+    ) {
+      return (
+        "The Gemini API quota was reached. Please wait about a minute and try again. "
+        + "If this keeps happening, the project may need a different API key, billing enabled, or a lower-traffic model."
+      );
+    }
 
-    const userMessage = {
-      role: "user",
-      content: finalQuestion || "Please explain the uploaded file.",
-      sources: [],
-      imagePreview:
-        fileForRequest && fileForRequest.type.startsWith("image/")
-          ? URL.createObjectURL(fileForRequest)
-          : null,
-      fileName: fileForRequest ? fileForRequest.name : null,
-      fileType: fileForRequest ? fileForRequest.type : null,
-    };
+    return `Something went wrong: ${error.message}`;
+  }
 
-    const messagesWithUserQuestion = [...messages, userMessage];
-
-    updateChatMessages(chatIdForRequest, messagesWithUserQuestion, true);
-    setActiveChatId(chatIdForRequest);
-    clearDraftState();
+  async function requestAssistantAnswer({
+    chatIdForRequest,
+    messagesWithUserQuestion,
+    finalQuestion,
+    fileWasAttached = false,
+  }) {
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setLoadingChatId(chatIdForRequest);
 
     try {
-      const data = fileForRequest
-        ? await sendFileQuestion(finalQuestion, fileForRequest)
-        : await sendTextQuestion(finalQuestion, messagesWithUserQuestion);
+      const data = fileWasAttached
+        ? await sendFileQuestion(finalQuestion, controller.signal)
+        : await sendTextQuestion(
+            finalQuestion,
+            messagesWithUserQuestion,
+            controller.signal
+          );
 
       const assistantMessage = {
         role: "assistant",
@@ -382,24 +399,143 @@ function App() {
         true
       );
     } catch (error) {
-      updateChatMessages(
-        chatIdForRequest,
-        [
-          ...messagesWithUserQuestion,
-          {
-            role: "assistant",
-            content:
-              error.message.includes("RESOURCE_EXHAUSTED") ||
-              error.message.includes("429")
-                ? "The Gemini API quota was reached. Please wait about a minute and try again. If this keeps happening, the project may need a different API key, billing enabled, or a lower-traffic model."
-                : `Something went wrong: ${error.message}`,
-          },
-        ],
-        true
-      );
+      const stoppedByUser = error.name === "AbortError";
+
+      if (stoppedByUser) {
+        updateChatMessages(
+          chatIdForRequest,
+          [
+            ...messagesWithUserQuestion,
+            {
+              role: "assistant",
+              content: "Response stopped.",
+              sources: [],
+            },
+          ],
+          true
+        );
+      } else {
+        updateChatMessages(
+          chatIdForRequest,
+          [
+            ...messagesWithUserQuestion,
+            {
+              role: "assistant",
+              content: getFriendlyErrorMessage(error),
+              sources: [],
+            },
+          ],
+          true
+        );
+      }
     } finally {
       setLoadingChatId(null);
+      abortControllerRef.current = null;
     }
+  }
+
+  async function handleSubmit(event) {
+    event.preventDefault();
+
+    if (loadingChatId) {
+      stopAnswer();
+      return;
+    }
+
+    const finalQuestion = question.trim();
+
+    if (!finalQuestion && !image) {
+      return;
+    }
+
+    const chatIdForRequest = activeChatId;
+    const fileWasAttached = Boolean(image);
+
+    const userMessage = {
+      role: "user",
+      content: finalQuestion || "Please explain the uploaded file.",
+      sources: [],
+      imagePreview:
+        image && image.type.startsWith("image/")
+          ? URL.createObjectURL(image)
+          : null,
+      fileName: image ? image.name : null,
+      fileType: image ? image.type : null,
+    };
+
+    const messagesWithUserQuestion = [...messages, userMessage];
+
+    updateChatMessages(chatIdForRequest, messagesWithUserQuestion, true);
+    setActiveChatId(chatIdForRequest);
+    clearDraftState();
+    clearEditingState();
+
+    await requestAssistantAnswer({
+      chatIdForRequest,
+      messagesWithUserQuestion,
+      finalQuestion,
+      fileWasAttached,
+    });
+  }
+
+  function stopAnswer() {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+  }
+
+  async function regenerateFromEditedMessage(messageIndex, newContent) {
+    const trimmedContent = newContent.trim();
+
+    if (!trimmedContent || loadingChatId) {
+      return;
+    }
+
+    const chatIdForRequest = activeChatId;
+    const messagesBeforeEdit = messages.slice(0, messageIndex);
+    const originalMessage = messages[messageIndex];
+
+    const editedUserMessage = {
+      ...originalMessage,
+      content: trimmedContent,
+    };
+
+    const messagesWithEditedQuestion = [...messagesBeforeEdit, editedUserMessage];
+
+    updateChatMessages(chatIdForRequest, messagesWithEditedQuestion, true);
+    clearEditingState();
+
+    await requestAssistantAnswer({
+      chatIdForRequest,
+      messagesWithUserQuestion: messagesWithEditedQuestion,
+      finalQuestion: trimmedContent,
+      fileWasAttached: false,
+    });
+  }
+
+  function beginEditMessage(index, content) {
+    if (loadingChatId) {
+      return;
+    }
+
+    setEditingMessageIndex(index);
+    setEditingText(content);
+  }
+
+  function cancelEditMessage() {
+    clearEditingState();
+  }
+
+  function copyMessage(text, key) {
+    navigator.clipboard
+      .writeText(text)
+      .then(() => {
+        setCopiedMessageKey(key);
+        window.setTimeout(() => setCopiedMessageKey(null), 1200);
+      })
+      .catch(() => {
+        setCopiedMessageKey(null);
+      });
   }
 
   async function handleChecklistExtraction() {
@@ -437,6 +573,11 @@ function App() {
     }
   }
 
+  function clearChecklist() {
+    setChecklistText("");
+    setChecklistResult(null);
+  }
+
   function handleExampleClick(exampleQuestion) {
     setQuestion(exampleQuestion);
   }
@@ -466,7 +607,11 @@ function App() {
         <div className="panel conversation-panel">
           <div className="conversation-header">
             <h2>Conversations</h2>
-            <button type="button" className="new-chat-button" onClick={startNewChat}>
+            <button
+              type="button"
+              className="new-chat-button"
+              onClick={startNewChat}
+            >
               New
             </button>
           </div>
@@ -534,9 +679,9 @@ function App() {
             retrieved sources.
           </h2>
           <p>
-            Ask in English or Arabic. Upload screenshots, PDFs, deadlines, or
-            checklists. Get clear answers, source references, and structured next
-            steps.
+            Ask in English or Arabic. Upload screenshots or PDFs of requirements,
+            deadlines, or checklists. Get clear answers, source references, and
+            structured next steps.
           </p>
         </section>
 
@@ -553,10 +698,18 @@ function App() {
             <div className="messages">
               {messages.map((message, index) => {
                 const messageIsArabic = isArabicText(message.content);
+                const messageKey = `${activeChatId}-${message.role}-${index}`;
+                const isEditingThisMessage = editingMessageIndex === index;
+                const canEditUserMessage =
+                  message.role === "user" &&
+                  !message.fileName &&
+                  !isActiveChatLoading;
+                const canCopyMessage =
+                  message.role === "user" || message.role === "assistant";
 
                 return (
                   <div
-                    key={`${message.role}-${index}`}
+                    key={messageKey}
                     className={`message ${message.role}`}
                   >
                     <div
@@ -592,13 +745,41 @@ function App() {
                         </div>
                       )}
 
-                      <div
-                        className={`message-content ${
-                          messageIsArabic ? "rtl-content" : ""
-                        }`}
-                      >
-                        <ReactMarkdown>{message.content}</ReactMarkdown>
-                      </div>
+                      {isEditingThisMessage ? (
+                        <div className="inline-edit-box" dir="ltr">
+                          <textarea
+                            value={editingText}
+                            onChange={(event) => setEditingText(event.target.value)}
+                            autoFocus
+                          />
+                          <div className="inline-edit-actions">
+                            <button
+                              type="button"
+                              className="mini-action-button secondary-action"
+                              onClick={cancelEditMessage}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              type="button"
+                              className="mini-action-button"
+                              onClick={() =>
+                                regenerateFromEditedMessage(index, editingText)
+                              }
+                            >
+                              Save & send
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div
+                          className={`message-content ${
+                            messageIsArabic ? "rtl-content" : ""
+                          }`}
+                        >
+                          <ReactMarkdown>{message.content}</ReactMarkdown>
+                        </div>
+                      )}
 
                       {message.sources?.length > 0 && (
                         <div className="sources" dir="ltr">
@@ -610,6 +791,28 @@ function App() {
                               </span>
                             ))}
                           </div>
+                        </div>
+                      )}
+
+                      {!isEditingThisMessage && canCopyMessage && (
+                        <div className="message-actions" dir="ltr">
+                          <button
+                            type="button"
+                            className="message-action-button"
+                            onClick={() => copyMessage(message.content, messageKey)}
+                          >
+                            {copiedMessageKey === messageKey ? "Copied" : "Copy"}
+                          </button>
+
+                          {canEditUserMessage && (
+                            <button
+                              type="button"
+                              className="message-action-button"
+                              onClick={() => beginEditMessage(index, message.content)}
+                            >
+                              Edit
+                            </button>
+                          )}
                         </div>
                       )}
                     </div>
@@ -629,10 +832,10 @@ function App() {
             </div>
 
             <form className="chat-form" onSubmit={handleSubmit}>
-              {file && (
+              {image && (
                 <div className="selected-file-preview">
-                  <span>{file.name}</span>
-                  <button type="button" onClick={() => setFile(null)}>
+                  <span>{image.name}</span>
+                  <button type="button" onClick={() => setImage(null)}>
                     Remove
                   </button>
                 </div>
@@ -643,7 +846,7 @@ function App() {
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/jpg,application/pdf"
-                    onChange={(event) => setFile(event.target.files[0] || null)}
+                    onChange={(event) => setImage(event.target.files[0] || null)}
                   />
                   ＋
                 </label>
@@ -662,11 +865,13 @@ function App() {
                 />
 
                 <button
-                  className="composer-send-button"
+                  className={`composer-send-button ${
+                    loadingChatId ? "composer-stop-button" : ""
+                  }`}
                   type="submit"
-                  disabled={Boolean(loadingChatId)}
+                  title={loadingChatId ? "Stop response" : "Send"}
                 >
-                  {isActiveChatLoading ? "..." : "➤"}
+                  {loadingChatId ? "■" : "➤"}
                 </button>
               </div>
             </form>
@@ -694,14 +899,25 @@ function App() {
               rows={10}
             />
 
-            <button
-              className="full-button"
-              type="button"
-              disabled={checklistLoading}
-              onClick={handleChecklistExtraction}
-            >
-              {checklistLoading ? "Extracting..." : "Extract checklist"}
-            </button>
+            <div className="checklist-actions">
+              <button
+                className="full-button"
+                type="button"
+                disabled={checklistLoading}
+                onClick={handleChecklistExtraction}
+              >
+                {checklistLoading ? "Extracting..." : "Extract checklist"}
+              </button>
+
+              <button
+                className="clear-checklist-button"
+                type="button"
+                disabled={checklistLoading && !checklistText}
+                onClick={clearChecklist}
+              >
+                Clear
+              </button>
+            </div>
 
             {checklistResult && (
               <div className="checklist-result">
