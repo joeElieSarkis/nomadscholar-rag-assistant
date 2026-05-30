@@ -100,6 +100,97 @@ input {
   font-size: 0.82rem;
 }
 
+.conversation-panel {
+  min-height: 0;
+}
+
+.conversation-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.65rem;
+}
+
+.conversation-header h2 {
+  margin: 0;
+}
+
+.new-chat-button {
+  background: rgba(20, 184, 166, 0.16);
+  color: #d8fffa;
+  border: 1px solid rgba(45, 212, 191, 0.25);
+  box-shadow: none;
+  padding: 0.35rem 0.55rem;
+  font-size: 0.75rem;
+}
+
+.new-chat-button:hover {
+  box-shadow: none;
+}
+
+.chat-list {
+  max-height: 150px;
+  overflow-y: auto;
+  display: grid;
+  gap: 0.4rem;
+  padding-right: 0.15rem;
+}
+
+.chat-list-item {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 0.65rem;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.chat-list-item.active {
+  background: rgba(20, 184, 166, 0.15);
+  border-color: rgba(45, 212, 191, 0.24);
+}
+
+.chat-title-button {
+  min-width: 0;
+  background: transparent;
+  color: #f8f4ec;
+  box-shadow: none;
+  padding: 0.5rem 0.55rem;
+  text-align: left;
+  font-size: 0.78rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.chat-title-button:hover {
+  background: transparent;
+  box-shadow: none;
+  transform: none;
+}
+
+.delete-chat-button {
+  height: 1.7rem;
+  width: 1.7rem;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: #b9d8d0;
+  box-shadow: none;
+  padding: 0;
+  margin-right: 0.25rem;
+  font-size: 1rem;
+}
+
+.delete-chat-button:hover {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fde68a;
+  box-shadow: none;
+  transform: none;
+}
+
 .examples {
   display: grid;
   gap: 0.45rem;

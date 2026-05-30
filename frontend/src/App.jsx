@@ -4,30 +4,87 @@ import "./App.css";
 
 const API_BASE_URL = "http://127.0.0.1:8000";
 
-function App() {
-  const defaultMessages = [
-    {
-      role: "assistant",
-      content:
-        "Hi, I’m NomadScholar AI. Ask me about scholarships, admissions, required documents, deadlines, or upload a screenshot of application requirements.",
-      sources: [],
-    },
-  ];
+const DEFAULT_MESSAGES = [
+  {
+    role: "assistant",
+    content:
+      "Hi, I’m NomadScholar AI. Ask me about scholarships, admissions, required documents, deadlines, or upload a screenshot of application requirements.",
+    sources: [],
+  },
+];
 
-  const [messages, setMessages] = useState(() => {
-    const savedMessages = localStorage.getItem("nomadscholar_messages");
+function createChatTitle(messages) {
+  const firstUserMessage = messages.find((message) => message.role === "user");
 
-    if (savedMessages) {
-      try {
-        return JSON.parse(savedMessages);
-      } catch {
-        return defaultMessages;
-      }
+  if (!firstUserMessage) {
+    return "New chat";
+  }
+
+  const title = firstUserMessage.content.trim();
+
+  if (title.length <= 34) {
+    return title;
+  }
+
+  return `${title.slice(0, 34)}...`;
+}
+
+function createNewChat() {
+  return {
+    id: crypto.randomUUID(),
+    title: "New chat",
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+    messages: DEFAULT_MESSAGES,
+  };
+}
+
+function loadSavedChats() {
+  const savedChats = localStorage.getItem("nomadscholar_chats");
+  const activeChatId = localStorage.getItem("nomadscholar_active_chat_id");
+
+  if (!savedChats) {
+    const initialChat = createNewChat();
+
+    return {
+      chats: [initialChat],
+      activeChatId: initialChat.id,
+    };
+  }
+
+  try {
+    const parsedChats = JSON.parse(savedChats);
+
+    if (!Array.isArray(parsedChats) || parsedChats.length === 0) {
+      const initialChat = createNewChat();
+
+      return {
+        chats: [initialChat],
+        activeChatId: initialChat.id,
+      };
     }
 
-    return defaultMessages;
-  });
+    const validActiveChat = parsedChats.some((chat) => chat.id === activeChatId);
 
+    return {
+      chats: parsedChats,
+      activeChatId: validActiveChat ? activeChatId : parsedChats[0].id,
+    };
+  } catch {
+    const initialChat = createNewChat();
+
+    return {
+      chats: [initialChat],
+      activeChatId: initialChat.id,
+    };
+  }
+}
+
+function App() {
+  const savedState = loadSavedChats();
+
+  const [chats, setChats] = useState(savedState.chats);
+  const [activeChatId, setActiveChatId] = useState(savedState.activeChatId);
   const [question, setQuestion] = useState("");
   const [image, setImage] = useState(null);
   const [checklistText, setChecklistText] = useState("");
@@ -35,6 +92,11 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [checklistLoading, setChecklistLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+
+  const activeChat =
+    chats.find((chat) => chat.id === activeChatId) || chats[0];
+
+  const messages = activeChat?.messages || DEFAULT_MESSAGES;
 
   const exampleQuestions = [
     "What documents do I need for a DAAD scholarship?",
@@ -44,11 +106,59 @@ function App() {
   ];
 
   useEffect(() => {
-    localStorage.setItem("nomadscholar_messages", JSON.stringify(messages));
-  }, [messages]);
+    localStorage.setItem("nomadscholar_chats", JSON.stringify(chats));
+    localStorage.setItem("nomadscholar_active_chat_id", activeChatId);
+  }, [chats, activeChatId]);
 
-  function buildHistory() {
-    const conversation = messages.filter(
+  function updateActiveChatMessages(nextMessages) {
+    setChats((currentChats) =>
+      currentChats.map((chat) => {
+        if (chat.id !== activeChatId) {
+          return chat;
+        }
+
+        return {
+          ...chat,
+          title: createChatTitle(nextMessages),
+          updatedAt: new Date().toISOString(),
+          messages: nextMessages,
+        };
+      })
+    );
+  }
+
+  function startNewChat() {
+    const newChat = createNewChat();
+
+    setChats((currentChats) => [newChat, ...currentChats]);
+    setActiveChatId(newChat.id);
+    setQuestion("");
+    setImage(null);
+    setChecklistResult(null);
+  }
+
+  function deleteChat(chatIdToDelete) {
+    setChats((currentChats) => {
+      const remainingChats = currentChats.filter(
+        (chat) => chat.id !== chatIdToDelete
+      );
+
+      if (remainingChats.length === 0) {
+        const newChat = createNewChat();
+        setActiveChatId(newChat.id);
+        return [newChat];
+      }
+
+      if (chatIdToDelete === activeChatId) {
+        setActiveChatId(remainingChats[0].id);
+      }
+
+      return remainingChats;
+    });
+  }
+
+  function buildHistory(currentMessages) {
+    const conversation = currentMessages.filter(
       (message) => message.role === "user" || message.role === "assistant"
     );
 
@@ -72,7 +182,7 @@ function App() {
     return history;
   }
 
-  async function sendTextQuestion(finalQuestion) {
+  async function sendTextQuestion(finalQuestion, currentMessages) {
     const response = await fetch(`${API_BASE_URL}/api/chat`, {
       method: "POST",
       headers: {
@@ -80,7 +190,7 @@ function App() {
       },
       body: JSON.stringify({
         question: finalQuestion,
-        history: buildHistory(),
+        history: buildHistory(currentMessages),
       }),
     });
 
@@ -126,14 +236,16 @@ function App() {
       imagePreview: image ? URL.createObjectURL(image) : null,
     };
 
-    setMessages((currentMessages) => [...currentMessages, userMessage]);
+    const messagesWithUserQuestion = [...messages, userMessage];
+
+    updateActiveChatMessages(messagesWithUserQuestion);
     setQuestion("");
     setLoading(true);
 
     try {
       const data = image
         ? await sendImageQuestion(finalQuestion)
-        : await sendTextQuestion(finalQuestion);
+        : await sendTextQuestion(finalQuestion, messagesWithUserQuestion);
 
       const assistantMessage = {
         role: "assistant",
@@ -141,11 +253,11 @@ function App() {
         sources: data.sources || [],
       };
 
-      setMessages((currentMessages) => [...currentMessages, assistantMessage]);
+      updateActiveChatMessages([...messagesWithUserQuestion, assistantMessage]);
       setImage(null);
     } catch (error) {
-      setMessages((currentMessages) => [
-        ...currentMessages,
+      updateActiveChatMessages([
+        ...messagesWithUserQuestion,
         {
           role: "assistant",
           content: `Something went wrong: ${error.message}`,
@@ -196,14 +308,6 @@ function App() {
     setQuestion(exampleQuestion);
   }
 
-  function clearChat() {
-    setMessages(defaultMessages);
-    setQuestion("");
-    setImage(null);
-    setChecklistResult(null);
-    localStorage.removeItem("nomadscholar_messages");
-  }
-
   return (
     <div className="app">
       <aside className="sidebar">
@@ -227,11 +331,41 @@ function App() {
           </ul>
         </div>
 
-        <div className="panel">
-          <h2>Conversation</h2>
-          <button type="button" className="clear-chat-button" onClick={clearChat}>
-            Start new chat
-          </button>
+        <div className="panel conversation-panel">
+          <div className="conversation-header">
+            <h2>Conversations</h2>
+            <button type="button" className="new-chat-button" onClick={startNewChat}>
+              New
+            </button>
+          </div>
+
+          <div className="chat-list">
+            {chats.map((chat) => (
+              <div
+                key={chat.id}
+                className={`chat-list-item ${
+                  chat.id === activeChatId ? "active" : ""
+                }`}
+              >
+                <button
+                  type="button"
+                  className="chat-title-button"
+                  onClick={() => setActiveChatId(chat.id)}
+                >
+                  {chat.title}
+                </button>
+
+                <button
+                  type="button"
+                  className="delete-chat-button"
+                  onClick={() => deleteChat(chat.id)}
+                  title="Delete chat"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="panel">
@@ -355,9 +489,7 @@ function App() {
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/jpg"
-                    onChange={(event) =>
-                      setImage(event.target.files[0] || null)
-                    }
+                    onChange={(event) => setImage(event.target.files[0] || null)}
                   />
                   ＋
                 </label>
@@ -425,9 +557,7 @@ function App() {
                   <>
                     <div className="result-card deadline-card">
                       <span className="result-label">Deadline</span>
-                      <strong>
-                        {checklistResult.deadline || "Not mentioned"}
-                      </strong>
+                      <strong>{checklistResult.deadline || "Not mentioned"}</strong>
                     </div>
 
                     <div className="result-card">
@@ -484,9 +614,7 @@ function App() {
                           ))}
                         </ol>
                       ) : (
-                        <p className="empty-result">
-                          No next steps generated.
-                        </p>
+                        <p className="empty-result">No next steps generated.</p>
                       )}
                     </div>
 
@@ -506,10 +634,7 @@ function App() {
 
       {previewImage && (
         <div className="image-modal" onClick={() => setPreviewImage(null)}>
-          <div
-            className="image-modal-content"
-            onClick={(event) => event.stopPropagation()}
-          >
+          <div className="image-modal-content">
             <button
               type="button"
               className="image-modal-close"
