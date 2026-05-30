@@ -13,6 +13,10 @@ const DEFAULT_MESSAGES = [
   },
 ];
 
+function isArabicText(text) {
+  return /[\u0600-\u06FF]/.test(text || "");
+}
+
 function isLowQualityTitle(text) {
   const cleaned = text.trim();
 
@@ -38,7 +42,7 @@ function createChatTitle(messages) {
 
   const originalText = firstUserMessage.content.trim();
   const text = originalText.toLowerCase();
-  const hasArabic = /[\u0600-\u06FF]/.test(originalText);
+  const hasArabic = isArabicText(originalText);
 
   if (isLowQualityTitle(originalText)) {
     return "General question";
@@ -430,21 +434,11 @@ function App() {
 
   return (
     <div className={`app ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
-      {sidebarCollapsed && (
-        <button
-          type="button"
-          className="sidebar-open-button"
-          onClick={() => setSidebarCollapsed(false)}
-        >
-          ☰
-        </button>
-      )}
-
       <aside className="sidebar">
         <div className="brand-row">
           <div className="brand">
             <div className="logo">🎓</div>
-            <div>
+            <div className="brand-copy">
               <h1>NomadScholar AI</h1>
               <p>Bilingual multimodal RAG assistant</p>
             </div>
@@ -453,10 +447,10 @@ function App() {
           <button
             type="button"
             className="sidebar-collapse-button"
-            onClick={() => setSidebarCollapsed(true)}
-            title="Hide sidebar"
+            onClick={() => setSidebarCollapsed((current) => !current)}
+            title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
           >
-            ←
+            {sidebarCollapsed ? "☰" : "←"}
           </button>
         </div>
 
@@ -497,7 +491,7 @@ function App() {
           </div>
         </div>
 
-        <div className="panel">
+        <div className="panel examples-panel">
           <h2>Try examples</h2>
           <div className="examples">
             {exampleQuestions.map((item) => (
@@ -548,49 +542,62 @@ function App() {
             </div>
 
             <div className="messages">
-              {messages.map((message, index) => (
-                <div
-                  key={`${message.role}-${index}`}
-                  className={`message ${message.role}`}
-                >
-                  <div className="message-bubble">
-                    <div className="message-role">
-                      {message.role === "user" ? "You" : "NomadScholar AI"}
-                    </div>
+              {messages.map((message, index) => {
+                const messageIsArabic = isArabicText(message.content);
 
-                    {message.imagePreview && (
-                      <button
-                        type="button"
-                        className="image-preview-button"
-                        onClick={() => setPreviewImage(message.imagePreview)}
-                      >
-                        <img
-                          src={message.imagePreview}
-                          alt="Uploaded application screenshot"
-                          className="message-image-preview"
-                        />
-                      </button>
-                    )}
-
-                    <div className="message-content">
-                      <ReactMarkdown>{message.content}</ReactMarkdown>
-                    </div>
-
-                    {message.sources?.length > 0 && (
-                      <div className="sources">
-                        <strong>Retrieved sources</strong>
-                        <div>
-                          {message.sources.map((source) => (
-                            <span key={source} className="source-pill">
-                              {source}
-                            </span>
-                          ))}
-                        </div>
+                return (
+                  <div
+                    key={`${message.role}-${index}`}
+                    className={`message ${message.role}`}
+                  >
+                    <div
+                      className={`message-bubble ${
+                        messageIsArabic ? "rtl-bubble" : ""
+                      }`}
+                      dir={messageIsArabic ? "rtl" : "ltr"}
+                    >
+                      <div className="message-role">
+                        {message.role === "user" ? "You" : "NomadScholar AI"}
                       </div>
-                    )}
+
+                      {message.imagePreview && (
+                        <button
+                          type="button"
+                          className="image-preview-button"
+                          onClick={() => setPreviewImage(message.imagePreview)}
+                        >
+                          <img
+                            src={message.imagePreview}
+                            alt="Uploaded application screenshot"
+                            className="message-image-preview"
+                          />
+                        </button>
+                      )}
+
+                      <div
+                        className={`message-content ${
+                          messageIsArabic ? "rtl-content" : ""
+                        }`}
+                      >
+                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                      </div>
+
+                      {message.sources?.length > 0 && (
+                        <div className="sources" dir="ltr">
+                          <strong>Retrieved sources</strong>
+                          <div>
+                            {message.sources.map((source) => (
+                              <span key={source} className="source-pill">
+                                {source}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
 
               {isActiveChatLoading && (
                 <div className="message assistant">

@@ -90,28 +90,32 @@ button:disabled {
 }
 
 .app.sidebar-collapsed {
-  grid-template-columns: 1fr;
+  grid-template-columns: 74px 1fr;
 }
 
 .app.sidebar-collapsed .sidebar {
+  padding: 1rem 0.7rem;
+  grid-template-rows: auto 1fr;
+}
+
+.app.sidebar-collapsed .brand-row {
+  flex-direction: column;
+  justify-content: flex-start;
+}
+
+.app.sidebar-collapsed .brand {
+  justify-content: center;
+}
+
+.app.sidebar-collapsed .brand-copy,
+.app.sidebar-collapsed .conversation-panel,
+.app.sidebar-collapsed .examples-panel,
+.app.sidebar-collapsed .disclaimer {
   display: none;
 }
 
-.sidebar-open-button {
-  position: fixed;
-  top: 1rem;
-  left: 1rem;
-  z-index: 90;
-  height: 2.6rem;
-  width: 2.6rem;
-  display: grid;
-  place-items: center;
-  border-radius: 999px;
-  background: #0f766e;
-  color: white;
-  box-shadow: 0 12px 28px rgba(15, 118, 110, 0.25);
-  padding: 0;
-  font-size: 1.05rem;
+.app.sidebar-collapsed .sidebar-collapse-button {
+  margin-top: 0.65rem;
 }
 
 .sidebar {
@@ -167,8 +171,8 @@ button:disabled {
 }
 
 .sidebar-collapse-button {
-  height: 2rem;
-  width: 2rem;
+  height: 2.15rem;
+  width: 2.15rem;
   display: grid;
   place-items: center;
   border-radius: 999px;
@@ -179,7 +183,7 @@ button:disabled {
   font-size: 1rem;
   line-height: 1;
   flex-shrink: 0;
-  border: 1px solid rgba(199, 234, 225, 0.12);
+  border: 1px solid rgba(199, 234, 225, 0.14);
 }
 
 .sidebar-collapse-button:hover {
@@ -526,6 +530,34 @@ button:disabled {
 
 .message-content li {
   margin-bottom: 0.28rem;
+}
+
+.rtl-bubble {
+  text-align: right;
+}
+
+.rtl-bubble .message-role {
+  text-align: right;
+}
+
+.rtl-content {
+  direction: rtl;
+  text-align: right;
+}
+
+.rtl-content ul,
+.rtl-content ol {
+  direction: rtl;
+  padding-right: 1.3rem;
+  padding-left: 0;
+  margin-right: 0;
+  margin-left: 0;
+  text-align: right;
+}
+
+.rtl-content li {
+  padding-right: 0.15rem;
+  padding-left: 0;
 }
 
 .message-content strong {
@@ -944,13 +976,63 @@ button:disabled {
   }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 1250px) {
+  body {
+    overflow: auto;
+  }
+
+  .app {
+    height: auto;
+    min-height: 100vh;
+    grid-template-columns: 74px 1fr;
+    overflow: visible;
+  }
+
+  .app:not(.sidebar-collapsed) {
+    grid-template-columns: 300px 1fr;
+  }
+
   .sidebar {
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .main {
+    height: auto;
+    overflow: visible;
+  }
+
+  .content-grid {
     grid-template-columns: 1fr;
   }
 
-  .brand-row {
-    grid-column: auto;
+  .messages {
+    height: 460px;
+  }
+
+  .checklist-card {
+    min-height: 640px;
+  }
+}
+
+@media (max-width: 860px) {
+  .app,
+  .app:not(.sidebar-collapsed),
+  .app.sidebar-collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .sidebar {
+    min-height: auto;
+    height: auto;
+  }
+
+  .app.sidebar-collapsed .sidebar {
+    display: none;
+  }
+
+  .app.sidebar-collapsed {
+    grid-template-columns: 1fr;
   }
 
   .hero h2 {
