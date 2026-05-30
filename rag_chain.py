@@ -48,9 +48,10 @@ def format_documents(documents):
     formatted_documents = []
 
     for index, document in enumerate(documents, start=1):
-        source = document.metadata.get("source_file", "Unknown source")
+        title = document.metadata.get("title", "Unknown source")
+        source_file = document.metadata.get("source_file", "Unknown file")
         formatted_documents.append(
-            f"[Retrieved chunk {index} from {source}]\n{document.page_content}"
+            f"[Retrieved chunk {index} from {title} ({source_file})]\n{document.page_content}"
         )
 
     return "\n\n".join(formatted_documents)
@@ -175,9 +176,10 @@ def answer_question(question, history=None, image_text=""):
     sources = []
 
     for document in retrieved_documents:
-        source = document.metadata.get("source_file", "Unknown source")
-        if source not in sources:
-            sources.append(source)
+        title = document.metadata.get("title") or document.metadata.get("source_file", "Unknown source")
+
+        if title not in sources:
+            sources.append(title)
 
     return {
         "answer": response.content,

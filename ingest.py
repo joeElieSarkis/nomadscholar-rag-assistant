@@ -12,6 +12,30 @@ COLLECTION_NAME = "nomadscholar_kb"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
 
+def extract_metadata(content, file_name):
+    """
+    Extract title, source, and URL from a curated knowledge base file.
+    """
+    metadata = {
+        "source_file": file_name,
+        "title": file_name,
+        "source": "",
+        "url": "",
+    }
+
+    for line in content.splitlines():
+        if line.startswith("TITLE:"):
+            metadata["title"] = line.replace("TITLE:", "").strip()
+
+        if line.startswith("SOURCE:"):
+            metadata["source"] = line.replace("SOURCE:", "").strip()
+
+        if line.startswith("URL:"):
+            metadata["url"] = line.replace("URL:", "").strip()
+
+    return metadata
+
+
 def load_documents():
     """
     Load all .txt files from the data folder.
@@ -32,10 +56,11 @@ def load_documents():
 
     for file_path in txt_files:
         content = file_path.read_text(encoding="utf-8")
+        metadata = extract_metadata(content, file_path.name)
 
         document = Document(
             page_content=content,
-            metadata={"source_file": file_path.name}
+            metadata=metadata,
         )
 
         documents.append(document)
@@ -54,7 +79,7 @@ def build_vectorstore():
     splitter = RecursiveCharacterTextSplitter(
         chunk_size=700,
         chunk_overlap=120,
-        separators=["\n\n", "\n", ".", " ", ""]
+        separators=["\n\n", "\n", ".", " ", ""],
     )
 
     chunks = splitter.split_documents(documents)
@@ -68,7 +93,7 @@ def build_vectorstore():
         documents=chunks,
         embedding=embeddings,
         persist_directory=VECTORSTORE_DIR,
-        collection_name=COLLECTION_NAME
+        collection_name=COLLECTION_NAME,
     )
 
     print("Vectorstore created successfully.")
