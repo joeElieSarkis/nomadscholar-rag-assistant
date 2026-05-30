@@ -78,10 +78,13 @@ button:disabled {
   box-shadow: none;
 }
 
+/* App shell */
+
 .app {
   height: 100vh;
+  width: 100vw;
   display: grid;
-  grid-template-columns: 300px 1fr;
+  grid-template-columns: 300px minmax(0, 1fr);
   background:
     radial-gradient(circle at top left, rgba(20, 184, 166, 0.16), transparent 28rem),
     radial-gradient(circle at bottom right, rgba(217, 119, 6, 0.12), transparent 24rem),
@@ -90,17 +93,20 @@ button:disabled {
 }
 
 .app.sidebar-collapsed {
-  grid-template-columns: 74px 1fr;
+  grid-template-columns: 74px minmax(0, 1fr);
 }
+
+/* Sidebar */
 
 .sidebar {
   height: 100vh;
+  min-height: 0;
   background:
     linear-gradient(180deg, #0b1f1a 0%, #102a25 55%, #17352f 100%);
   color: white;
   padding: 1.25rem;
   display: grid;
-  grid-template-rows: auto 230px 230px 1fr;
+  grid-template-rows: auto minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr);
   gap: 0.85rem;
   overflow: hidden;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
@@ -136,6 +142,7 @@ button:disabled {
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
+  min-width: 0;
 }
 
 .brand {
@@ -157,10 +164,17 @@ button:disabled {
   box-shadow: 0 12px 30px rgba(20, 184, 166, 0.25);
 }
 
+.brand-copy {
+  min-width: 0;
+}
+
 .brand h1 {
   margin: 0;
   font-size: 1.2rem;
   letter-spacing: -0.02em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .brand p {
@@ -194,12 +208,14 @@ button:disabled {
 }
 
 .panel {
+  min-width: 0;
+  min-height: 0;
   background: rgba(255, 255, 255, 0.075);
   border: 1px solid rgba(199, 234, 225, 0.13);
   border-radius: 0.9rem;
   padding: 0.75rem;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
-  min-width: 0;
+  overflow: hidden;
 }
 
 .panel h2 {
@@ -209,12 +225,24 @@ button:disabled {
 }
 
 .conversation-panel,
-.examples-panel,
+.examples-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .disclaimer {
-  height: 230px;
-  min-height: 230px;
-  max-height: 230px;
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  background: rgba(217, 119, 6, 0.12);
+  border-color: rgba(245, 158, 11, 0.22);
+}
+
+.disclaimer p {
+  color: #f5dec0;
+  line-height: 1.4;
+  margin: 0.4rem 0 0;
+  font-size: 0.8rem;
 }
 
 .conversation-header {
@@ -249,7 +277,7 @@ button:disabled {
 }
 
 .chat-list {
-  height: 168px;
+  min-height: 0;
   overflow-y: auto;
   display: grid;
   align-content: start;
@@ -322,8 +350,12 @@ button:disabled {
 }
 
 .examples {
+  min-height: 0;
+  overflow-y: auto;
   display: grid;
+  align-content: start;
   gap: 0.42rem;
+  padding-right: 0.15rem;
 }
 
 .example-button {
@@ -348,28 +380,22 @@ button:disabled {
   filter: none;
 }
 
-.disclaimer {
-  background: rgba(217, 119, 6, 0.12);
-  border-color: rgba(245, 158, 11, 0.22);
-}
-
-.disclaimer p {
-  color: #f5dec0;
-  line-height: 1.4;
-  margin: 0.4rem 0 0;
-  font-size: 0.8rem;
-}
+/* Main layout */
 
 .main {
+  min-width: 0;
   height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
   padding: 1.25rem;
-  overflow: hidden;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: auto auto;
+  align-content: start;
   gap: 1rem;
 }
 
 .hero {
+  min-width: 0;
   background:
     linear-gradient(135deg, rgba(255, 252, 246, 0.92), rgba(238, 250, 246, 0.92));
   border: 1px solid rgba(15, 118, 110, 0.14);
@@ -405,7 +431,7 @@ button:disabled {
 }
 
 .content-grid {
-  min-height: 0;
+  min-width: 0;
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(340px, 0.85fr);
   gap: 1rem;
@@ -413,6 +439,7 @@ button:disabled {
 
 .chat-card,
 .checklist-card {
+  min-width: 0;
   min-height: 0;
   background: rgba(255, 252, 246, 0.92);
   border: 1px solid rgba(15, 118, 110, 0.13);
@@ -422,14 +449,18 @@ button:disabled {
 }
 
 .chat-card {
+  height: calc(100vh - 13.2rem);
+  min-height: 560px;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0.75rem;
 }
 
 .checklist-card {
+  height: calc(100vh - 13.2rem);
+  min-height: 560px;
   display: grid;
-  grid-template-rows: auto auto 110px auto 1fr;
+  grid-template-rows: auto auto 110px auto minmax(0, 1fr);
   gap: 0.65rem;
   overflow: hidden;
 }
@@ -462,6 +493,8 @@ button:disabled {
   font-size: 0.72rem;
   font-weight: 800;
 }
+
+/* Messages */
 
 .messages {
   min-height: 0;
@@ -591,6 +624,8 @@ button:disabled {
   cursor: zoom-in;
 }
 
+/* Sources */
+
 .sources {
   margin-top: 0.75rem;
   padding-top: 0.65rem;
@@ -625,6 +660,8 @@ button:disabled {
 .typing {
   color: #51645f;
 }
+
+/* Composer */
 
 .chat-form {
   display: grid;
@@ -735,6 +772,8 @@ button:disabled {
   padding: 0;
   font-size: 1rem;
 }
+
+/* Checklist */
 
 .small-text {
   color: #51645f;
@@ -876,6 +915,8 @@ button:disabled {
   border: 1px solid rgba(20, 184, 166, 0.18);
 }
 
+/* Image modal */
+
 .image-modal {
   position: fixed;
   inset: 0;
@@ -919,66 +960,77 @@ button:disabled {
   line-height: 1;
 }
 
-@media (max-width: 1250px) {
-  body {
-    overflow: hidden;
-  }
+/* Responsive */
 
-  .app {
-    height: 100vh;
-    min-height: 100vh;
-    grid-template-columns: 300px minmax(0, 1fr);
-    overflow: hidden;
-  }
-
-  .app.sidebar-collapsed {
-    grid-template-columns: 74px minmax(0, 1fr);
-  }
-
-  .sidebar {
-    height: 100vh;
-    min-height: 100vh;
-  }
-
-  .main {
-    height: 100vh;
-    min-width: 0;
-    overflow: hidden;
-    padding: 1rem;
-  }
-
-  .hero {
-    padding: 1rem 1.15rem;
-  }
-
-  .hero h2 {
-    font-size: 1.35rem;
-  }
-
-  .hero p {
-    font-size: 0.88rem;
-  }
-
+@media (max-width: 1350px) {
   .content-grid {
-    min-width: 0;
     grid-template-columns: 1fr;
   }
 
   .chat-card,
   .checklist-card {
-    min-width: 0;
+    height: auto;
+    min-height: 640px;
   }
 
   .messages {
-    height: auto;
+    height: 460px;
   }
 
-  .checklist-card {
-    display: none;
+  .hero h2 {
+    font-size: 1.32rem;
+  }
+
+  .hero p {
+    font-size: 0.88rem;
   }
 }
 
-@media (max-width: 860px) {
+@media (max-width: 950px) {
+  .app {
+    grid-template-columns: 260px minmax(0, 1fr);
+  }
+
+  .app.sidebar-collapsed {
+    grid-template-columns: 68px minmax(0, 1fr);
+  }
+
+  .sidebar {
+    padding: 1rem;
+  }
+
+  .brand h1 {
+    font-size: 1rem;
+  }
+
+  .brand p {
+    font-size: 0.72rem;
+  }
+
+  .logo {
+    height: 2.35rem;
+    width: 2.35rem;
+    font-size: 1.1rem;
+  }
+
+  .main {
+    padding: 0.85rem;
+  }
+
+  .hero h2 {
+    font-size: 1.18rem;
+  }
+
+  .hero p {
+    font-size: 0.82rem;
+  }
+
+  .message-bubble {
+    max-width: 94%;
+  }
+}
+
+@media (max-width: 760px) {
   body {
     overflow: auto;
   }
@@ -987,14 +1039,15 @@ button:disabled {
   .app.sidebar-collapsed {
     height: auto;
     min-height: 100vh;
-    grid-template-columns: 1fr;
+    width: 100%;
+    display: block;
     overflow: visible;
   }
 
   .sidebar {
-    min-height: auto;
     height: auto;
-    grid-template-rows: auto 230px 230px 230px;
+    min-height: auto;
+    grid-template-rows: auto 220px 220px 180px;
   }
 
   .app.sidebar-collapsed .sidebar {
@@ -1008,7 +1061,7 @@ button:disabled {
   }
 
   .hero h2 {
-    font-size: 1.25rem;
+    font-size: 1.2rem;
   }
 
   .content-grid {
@@ -1019,8 +1072,8 @@ button:disabled {
     height: 460px;
   }
 
+  .chat-card,
   .checklist-card {
-    display: grid;
     min-height: 640px;
   }
 }
