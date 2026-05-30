@@ -13,6 +13,22 @@ const DEFAULT_MESSAGES = [
   },
 ];
 
+function isLowQualityTitle(text) {
+  const cleaned = text.trim();
+
+  if (cleaned.length < 4) {
+    return true;
+  }
+
+  if (/(.)\1{5,}/.test(cleaned)) {
+    return true;
+  }
+
+  const hasEnoughLetters = /[a-zA-Z\u0600-\u06FF]{4,}/.test(cleaned);
+
+  return !hasEnoughLetters;
+}
+
 function createChatTitle(messages) {
   const firstUserMessage = messages.find((message) => message.role === "user");
 
@@ -22,8 +38,11 @@ function createChatTitle(messages) {
 
   const originalText = firstUserMessage.content.trim();
   const text = originalText.toLowerCase();
-
   const hasArabic = /[\u0600-\u06FF]/.test(originalText);
+
+  if (isLowQualityTitle(originalText)) {
+    return "General question";
+  }
 
   if (hasArabic) {
     if (originalText.includes("منحة") || originalText.includes("المستندات")) {
@@ -38,7 +57,9 @@ function createChatTitle(messages) {
       return "إرشاد جامعي";
     }
 
-    return originalText.length <= 24 ? originalText : `${originalText.slice(0, 24)}...`;
+    return originalText.length <= 24
+      ? originalText
+      : `${originalText.slice(0, 24)}...`;
   }
 
   if (text.includes("daad")) {
@@ -57,7 +78,11 @@ function createChatTitle(messages) {
     return "Admission guarantee question";
   }
 
-  if (text.includes("screenshot") || text.includes("image") || text.includes("uploaded")) {
+  if (
+    text.includes("screenshot") ||
+    text.includes("image") ||
+    text.includes("uploaded")
+  ) {
     return "Screenshot analysis";
   }
 
@@ -65,11 +90,19 @@ function createChatTitle(messages) {
     return "Application requirements";
   }
 
-  if (originalText.length <= 28) {
-    return originalText;
+  if (text.includes("scholarship")) {
+    return "Scholarship guidance";
   }
 
-  return `${originalText.slice(0, 28)}...`;
+  if (text.includes("master") || text.includes("masters")) {
+    return "Master’s application guidance";
+  }
+
+  if (text.includes("hello") || text.includes("hi") || text.includes("hey")) {
+    return "Welcome chat";
+  }
+
+  return "General application question";
 }
 
 function createNewChat() {
@@ -132,7 +165,7 @@ function App() {
   const [image, setImage] = useState(null);
   const [checklistText, setChecklistText] = useState("");
   const [checklistResult, setChecklistResult] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loadingChatId, setLoadingChatId] = useState(null);
   const [checklistLoading, setChecklistLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -141,6 +174,7 @@ function App() {
     chats.find((chat) => chat.id === activeChatId) || chats[0];
 
   const messages = activeChat?.messages || DEFAULT_MESSAGES;
+  const isActiveChatLoading = loadingChatId === activeChatId;
 
   const exampleQuestions = [
     "What documents do I need for a DAAD scholarship?",
@@ -154,10 +188,20 @@ function App() {
     localStorage.setItem("nomadscholar_active_chat_id", activeChatId);
   }, [chats, activeChatId]);
 
-  function updateActiveChatMessages(nextMessages) {
-    setChats((currentChats) =>
-      currentChats.map((chat) => {
-        if (chat.id !== activeChatId) {
+  function clearDraftState() {
+    setQuestion("");
+    setImage(null);
+  }
+
+  function switchChat(chatId) {
+    setActiveChatId(chatId);
+    clearDraftState();
+  }
+
+  function updateChatMessages(chatId, nextMessages, moveToTop = false) {
+    setChats((currentChats) => {
+      const updatedChats = currentChats.map((chat) => {
+        if (chat.id !== chatId) {
           return chat;
         }
 
@@ -167,8 +211,17 @@ function App() {
           updatedAt: new Date().toISOString(),
           messages: nextMessages,
         };
-      })
-    );
+      });
+
+      if (!moveToTop) {
+        return updatedChats;
+      }
+
+      const updatedChat = updatedChats.find((chat) => chat.id === chatId);
+      const otherChats = updatedChats.filter((chat) => chat.id !== chatId);
+
+      return updatedChat ? [updatedChat, ...otherChats] : updatedChats;
+    });
   }
 
   function startNewChat() {
@@ -179,10 +232,10 @@ function App() {
       (message) => message.role === "user"
     );
 
+    clearDraftState();
+    setChecklistResult(null);
+
     if (!hasUserMessages) {
-      setQuestion("");
-      setImage(null);
-      setChecklistResult(null);
       return;
     }
 
@@ -190,9 +243,6 @@ function App() {
 
     setChats((currentChats) => [newChat, ...currentChats]);
     setActiveChatId(newChat.id);
-    setQuestion("");
-    setImage(null);
-    setChecklistResult(null);
   }
 
   function deleteChat(chatIdToDelete) {
@@ -204,11 +254,13 @@ function App() {
       if (remainingChats.length === 0) {
         const newChat = createNewChat();
         setActiveChatId(newChat.id);
+        clearDraftState();
         return [newChat];
       }
 
       if (chatIdToDelete === activeChatId) {
         setActiveChatId(remainingChats[0].id);
+        clearDraftState();
       }
 
       return remainingChats;
@@ -287,6 +339,8 @@ function App() {
       return;
     }
 
+    const chatIdForRequest = activeChatId;
+
     const userMessage = {
       role: "user",
       content: finalQuestion || "Please explain the uploaded image.",
@@ -296,9 +350,10 @@ function App() {
 
     const messagesWithUserQuestion = [...messages, userMessage];
 
-    updateActiveChatMessages(messagesWithUserQuestion);
-    setQuestion("");
-    setLoading(true);
+    updateChatMessages(chatIdForRequest, messagesWithUserQuestion, true);
+    setActiveChatId(chatIdForRequest);
+    clearDraftState();
+    setLoadingChatId(chatIdForRequest);
 
     try {
       const data = image
@@ -311,19 +366,26 @@ function App() {
         sources: data.sources || [],
       };
 
-      updateActiveChatMessages([...messagesWithUserQuestion, assistantMessage]);
-      setImage(null);
+      updateChatMessages(
+        chatIdForRequest,
+        [...messagesWithUserQuestion, assistantMessage],
+        true
+      );
     } catch (error) {
-      updateActiveChatMessages([
-        ...messagesWithUserQuestion,
-        {
-          role: "assistant",
-          content: `Something went wrong: ${error.message}`,
-          sources: [],
-        },
-      ]);
+      updateChatMessages(
+        chatIdForRequest,
+        [
+          ...messagesWithUserQuestion,
+          {
+            role: "assistant",
+            content: `Something went wrong: ${error.message}`,
+            sources: [],
+          },
+        ],
+        true
+      );
     } finally {
-      setLoading(false);
+      setLoadingChatId(null);
     }
   }
 
@@ -377,6 +439,7 @@ function App() {
           ☰
         </button>
       )}
+
       <aside className="sidebar">
         <div className="brand-row">
           <div className="brand">
@@ -393,7 +456,7 @@ function App() {
             onClick={() => setSidebarCollapsed(true)}
             title="Hide sidebar"
           >
-            ‹
+            ←
           </button>
         </div>
 
@@ -416,7 +479,7 @@ function App() {
                 <button
                   type="button"
                   className="chat-title-button"
-                  onClick={() => setActiveChatId(chat.id)}
+                  onClick={() => switchChat(chat.id)}
                 >
                   {chat.title}
                 </button>
@@ -529,7 +592,7 @@ function App() {
                 </div>
               ))}
 
-              {loading && (
+              {isActiveChatLoading && (
                 <div className="message assistant">
                   <div className="message-bubble">
                     <div className="typing">
@@ -576,9 +639,9 @@ function App() {
                 <button
                   className="composer-send-button"
                   type="submit"
-                  disabled={loading}
+                  disabled={Boolean(loadingChatId)}
                 >
-                  {loading ? "..." : "➤"}
+                  {isActiveChatLoading ? "..." : "➤"}
                 </button>
               </div>
             </form>
