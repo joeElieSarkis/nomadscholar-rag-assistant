@@ -41,6 +41,7 @@ if __name__ == "__main__":
         "شو المستندات المطلوبة للتقديم على منحة؟",
         "What should I prepare for Erasmus Mundus?",
         "Do universities require separate scholarship applications?",
+        "I want to apply for a master's in AI in France. What options should I explore?",
     ]
 
     vectorstore = get_vectorstore()
