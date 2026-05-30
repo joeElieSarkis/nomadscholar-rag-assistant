@@ -20,7 +20,26 @@ function createChatTitle(messages) {
     return "New chat";
   }
 
-  const text = firstUserMessage.content.toLowerCase();
+  const originalText = firstUserMessage.content.trim();
+  const text = originalText.toLowerCase();
+
+  const hasArabic = /[\u0600-\u06FF]/.test(originalText);
+
+  if (hasArabic) {
+    if (originalText.includes("منحة") || originalText.includes("المستندات")) {
+      return "قائمة مستندات المنحة";
+    }
+
+    if (originalText.includes("قبول") || originalText.includes("انقبل")) {
+      return "سؤال عن القبول";
+    }
+
+    if (originalText.includes("جامعة") || originalText.includes("ماجستير")) {
+      return "إرشاد جامعي";
+    }
+
+    return originalText.length <= 24 ? originalText : `${originalText.slice(0, 24)}...`;
+  }
 
   if (text.includes("daad")) {
     return "DAAD scholarship guidance";
@@ -38,10 +57,6 @@ function createChatTitle(messages) {
     return "Admission guarantee question";
   }
 
-  if (text.includes("منحة") || text.includes("المستندات")) {
-    return "Arabic scholarship checklist";
-  }
-
   if (text.includes("screenshot") || text.includes("image") || text.includes("uploaded")) {
     return "Screenshot analysis";
   }
@@ -50,13 +65,11 @@ function createChatTitle(messages) {
     return "Application requirements";
   }
 
-  const title = firstUserMessage.content.trim();
-
-  if (title.length <= 28) {
-    return title;
+  if (originalText.length <= 28) {
+    return originalText;
   }
 
-  return `${title.slice(0, 28)}...`;
+  return `${originalText.slice(0, 28)}...`;
 }
 
 function createNewChat() {
@@ -159,6 +172,20 @@ function App() {
   }
 
   function startNewChat() {
+    const currentChat = chats.find((chat) => chat.id === activeChatId);
+    const currentMessages = currentChat?.messages || [];
+
+    const hasUserMessages = currentMessages.some(
+      (message) => message.role === "user"
+    );
+
+    if (!hasUserMessages) {
+      setQuestion("");
+      setImage(null);
+      setChecklistResult(null);
+      return;
+    }
+
     const newChat = createNewChat();
 
     setChats((currentChats) => [newChat, ...currentChats]);
@@ -368,18 +395,6 @@ function App() {
           >
             ‹
           </button>
-        </div>
-
-        <div className="panel">
-          <h2>AI system</h2>
-          <ul>
-            <li>LangChain RAG pipeline</li>
-            <li>ChromaDB vector retrieval</li>
-            <li>Gemini generation</li>
-            <li>EasyOCR image input</li>
-            <li>Pydantic structured output</li>
-            <li>FastAPI + React architecture</li>
-          </ul>
         </div>
 
         <div className="panel conversation-panel">
