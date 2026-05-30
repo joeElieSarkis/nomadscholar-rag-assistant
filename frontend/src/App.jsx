@@ -388,8 +388,11 @@ function App() {
           ...messagesWithUserQuestion,
           {
             role: "assistant",
-            content: `Something went wrong: ${error.message}`,
-            sources: [],
+            content:
+              error.message.includes("RESOURCE_EXHAUSTED") ||
+              error.message.includes("429")
+                ? "The Gemini API quota was reached. Please wait about a minute and try again. If this keeps happening, the project may need a different API key, billing enabled, or a lower-traffic model."
+                : `Something went wrong: ${error.message}`,
           },
         ],
         true
