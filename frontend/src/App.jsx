@@ -20,13 +20,43 @@ function createChatTitle(messages) {
     return "New chat";
   }
 
+  const text = firstUserMessage.content.toLowerCase();
+
+  if (text.includes("daad")) {
+    return "DAAD scholarship guidance";
+  }
+
+  if (text.includes("france") || text.includes("french")) {
+    return "France master’s options";
+  }
+
+  if (text.includes("erasmus")) {
+    return "Erasmus Mundus guidance";
+  }
+
+  if (text.includes("guarantee") || text.includes("accepted")) {
+    return "Admission guarantee question";
+  }
+
+  if (text.includes("منحة") || text.includes("المستندات")) {
+    return "Arabic scholarship checklist";
+  }
+
+  if (text.includes("screenshot") || text.includes("image") || text.includes("uploaded")) {
+    return "Screenshot analysis";
+  }
+
+  if (text.includes("documents") || text.includes("requirements")) {
+    return "Application requirements";
+  }
+
   const title = firstUserMessage.content.trim();
 
-  if (title.length <= 34) {
+  if (title.length <= 28) {
     return title;
   }
 
-  return `${title.slice(0, 34)}...`;
+  return `${title.slice(0, 28)}...`;
 }
 
 function createNewChat() {
@@ -92,6 +122,7 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [checklistLoading, setChecklistLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   const activeChat =
     chats.find((chat) => chat.id === activeChatId) || chats[0];
@@ -309,14 +340,34 @@ function App() {
   }
 
   return (
-    <div className="app">
+    <div className={`app ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      {sidebarCollapsed && (
+        <button
+          type="button"
+          className="sidebar-open-button"
+          onClick={() => setSidebarCollapsed(false)}
+        >
+          ☰
+        </button>
+      )}
       <aside className="sidebar">
-        <div className="brand">
-          <div className="logo">🎓</div>
-          <div>
-            <h1>NomadScholar AI</h1>
-            <p>Bilingual multimodal RAG assistant</p>
+        <div className="brand-row">
+          <div className="brand">
+            <div className="logo">🎓</div>
+            <div>
+              <h1>NomadScholar AI</h1>
+              <p>Bilingual multimodal RAG assistant</p>
+            </div>
           </div>
+
+          <button
+            type="button"
+            className="sidebar-collapse-button"
+            onClick={() => setSidebarCollapsed(true)}
+            title="Hide sidebar"
+          >
+            ‹
+          </button>
         </div>
 
         <div className="panel">

@@ -32,6 +32,29 @@ input {
   overflow: hidden;
 }
 
+.app.sidebar-collapsed {
+  grid-template-columns: 1fr;
+}
+
+.app.sidebar-collapsed .sidebar {
+  display: none;
+}
+
+.sidebar-open-button {
+  position: fixed;
+  top: 1rem;
+  left: 1rem;
+  z-index: 90;
+  height: 2.6rem;
+  width: 2.6rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #0f766e;
+  color: white;
+  box-shadow: 0 12px 28px rgba(15, 118, 110, 0.25);
+}
+
 /* Sidebar */
 
 .sidebar {
@@ -42,15 +65,43 @@ input {
   padding: 1.25rem;
   display: flex;
   flex-direction: column;
-  gap: 0.9rem;
+  gap: 0.75rem;
   overflow: hidden;
   border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
 }
 
 .brand {
   display: flex;
   gap: 0.8rem;
   align-items: center;
+  min-width: 0;
+}
+
+.sidebar-collapse-button {
+  height: 2rem;
+  width: 2rem;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #d8ebe6;
+  box-shadow: none;
+  padding: 0;
+  font-size: 1.4rem;
+  flex-shrink: 0;
+}
+
+.sidebar-collapse-button:hover {
+  background: rgba(20, 184, 166, 0.16);
+  box-shadow: none;
+  transform: none;
 }
 
 .logo {
@@ -82,7 +133,7 @@ input {
   background: rgba(255, 255, 255, 0.075);
   border: 1px solid rgba(199, 234, 225, 0.13);
   border-radius: 0.9rem;
-  padding: 0.85rem;
+  padding: 0.75rem;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
@@ -130,10 +181,10 @@ input {
 }
 
 .chat-list {
-  max-height: 150px;
+  max-height: 118px;
   overflow-y: auto;
   display: grid;
-  gap: 0.4rem;
+  gap: 0.35rem;
   padding-right: 0.15rem;
 }
 
@@ -157,9 +208,9 @@ input {
   background: transparent;
   color: #f8f4ec;
   box-shadow: none;
-  padding: 0.5rem 0.55rem;
+  padding: 0.45rem 0.5rem;
   text-align: left;
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -202,11 +253,10 @@ input {
   color: #f8f4ec;
   border: 1px solid rgba(199, 234, 225, 0.14);
   border-radius: 0.65rem;
-  padding: 0.55rem 0.65rem;
+  padding: 0.48rem 0.6rem;
   cursor: pointer;
-  font-size: 0.82rem;
-  line-height: 1.25;
-  box-shadow: none;
+  font-size: 0.78rem;
+  line-height: 1.22;
   transition:
     background 0.18s ease,
     border-color 0.18s ease,
