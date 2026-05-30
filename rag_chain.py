@@ -50,7 +50,7 @@ def format_documents(documents):
     for index, document in enumerate(documents, start=1):
         source = document.metadata.get("source_file", "Unknown source")
         formatted_documents.append(
-            f"[Source {index}: {source}]\n{document.page_content}"
+            f"[Retrieved chunk {index} from {source}]\n{document.page_content}"
         )
 
     return "\n\n".join(formatted_documents)
@@ -69,8 +69,76 @@ def format_chat_history(history):
     return "\n".join(formatted_history)
 
 
+def is_greeting(question):
+    normalized_question = question.lower().strip()
+
+    greetings = {
+        "hi",
+        "hello",
+        "hey",
+        "good morning",
+        "good afternoon",
+        "good evening",
+        "مرحبا",
+        "اهلا",
+        "أهلا",
+        "أهلاً",
+        "السلام عليكم",
+    }
+
+    return normalized_question in greetings
+
+
+def is_safety_or_guarantee_question(question):
+    normalized_question = question.lower()
+
+    guarantee_keywords = [
+        "guarantee",
+        "guaranteed",
+        "100%",
+        "make sure i get accepted",
+        "will i definitely get accepted",
+        "visa guarantee",
+        "scholarship guarantee",
+        "اضمن",
+        "مضمون",
+        "أكيد انقبل",
+        "اكيد انقبل",
+    ]
+
+    return any(keyword in normalized_question for keyword in guarantee_keywords)
+
+
 def answer_question(question, history=None, image_text=""):
     history = history or []
+
+    if is_greeting(question):
+        return {
+            "answer": (
+                "Hello! I’m NomadScholar AI. I can help you understand scholarship and university "
+                "application requirements, prepare document checklists, compare official guidance, "
+                "and explain screenshots of admissions or scholarship pages.\n\n"
+                "What are you applying for?"
+            ),
+            "sources": [],
+            "retrieved_context": "",
+        }
+
+    if is_safety_or_guarantee_question(question):
+        return {
+            "answer": (
+                "I can’t guarantee admission, scholarships, visas, or funding. Final decisions are made "
+                "by the official university, scholarship provider, or embassy.\n\n"
+                "What I can do is help you:\n"
+                "- understand official requirements\n"
+                "- prepare a document checklist\n"
+                "- identify missing information\n"
+                "- explain deadlines and eligibility notes\n"
+                "- organize your next steps"
+            ),
+            "sources": [],
+            "retrieved_context": "",
+        }
 
     vectorstore = get_vectorstore()
     retriever = vectorstore.as_retriever(search_kwargs={"k": 4})
@@ -144,13 +212,26 @@ Text:
 
 
 if __name__ == "__main__":
-    test_text = """
-    Applicants must submit academic transcripts, a CV, a motivation letter,
-    two recommendation letters, and proof of English or German language proficiency.
-    The application deadline is 15 January 2026.
-    """
+    test_questions = [
+        "hello",
+        "Can you guarantee I will get accepted?",
+        "What documents do I need for a DAAD scholarship?",
+        "I want to apply for a master's in AI in France. What options should I explore?",
+    ]
 
-    checklist = extract_application_checklist(test_text)
+    for test_question in test_questions:
+        result = answer_question(test_question)
 
-    print("\nStructured checklist:")
-    print(checklist.model_dump_json(indent=2))
+        print("\n" + "=" * 80)
+        print(f"Question: {test_question}")
+        print("=" * 80)
+
+        print("\nAnswer:")
+        print(result["answer"])
+
+        print("\nSources:")
+        if result["sources"]:
+            for source in result["sources"]:
+                print(f"- {source}")
+        else:
+            print("No retrieved sources used.")
