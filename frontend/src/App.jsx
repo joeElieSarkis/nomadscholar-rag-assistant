@@ -20,6 +20,7 @@ function App() {
   const [checklistResult, setChecklistResult] = useState(null);
   const [loading, setLoading] = useState(false);
   const [checklistLoading, setChecklistLoading] = useState(false);
+  const [previewImage, setPreviewImage] = useState(null);
 
   const exampleQuestions = [
     "What documents do I need for a DAAD scholarship?",
@@ -104,6 +105,7 @@ function App() {
       role: "user",
       content: finalQuestion || "Please explain the uploaded image.",
       sources: [],
+      imagePreview: image ? URL.createObjectURL(image) : null,
     };
 
     setMessages((currentMessages) => [...currentMessages, userMessage]);
@@ -260,6 +262,20 @@ function App() {
                       {message.role === "user" ? "You" : "NomadScholar AI"}
                     </div>
 
+                    {message.imagePreview && (
+                      <button
+                        type="button"
+                        className="image-preview-button"
+                        onClick={() => setPreviewImage(message.imagePreview)}
+                      >
+                        <img
+                          src={message.imagePreview}
+                          alt="Uploaded application screenshot"
+                          className="message-image-preview"
+                        />
+                      </button>
+                    )}
+
                     <div className="message-content">
                       <ReactMarkdown>{message.content}</ReactMarkdown>
                     </div>
@@ -292,25 +308,40 @@ function App() {
             </div>
 
             <form className="chat-form" onSubmit={handleSubmit}>
-              <textarea
-                value={question}
-                onChange={(event) => setQuestion(event.target.value)}
-                placeholder="Ask in English or Arabic..."
-                rows={3}
-              />
+              {image && (
+                <div className="selected-file-preview">
+                  <span>{image.name}</span>
+                  <button type="button" onClick={() => setImage(null)}>
+                    Remove
+                  </button>
+                </div>
+              )}
 
-              <div className="form-row">
-                <label className="file-input">
+              <div className="composer">
+                <label className="composer-attach-button" title="Attach image">
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/jpg"
                     onChange={(event) => setImage(event.target.files[0] || null)}
                   />
-                  {image ? image.name : "Upload screenshot"}
+                  ＋
                 </label>
 
-                <button type="submit" disabled={loading}>
-                  {loading ? "Thinking..." : "Send"}
+                <textarea
+                  value={question}
+                  onChange={(event) => setQuestion(event.target.value)}
+                  placeholder="Ask in English or Arabic..."
+                  rows={1}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      handleSubmit(event);
+                    }
+                  }}
+                />
+
+                <button className="composer-send-button" type="submit" disabled={loading}>
+                  {loading ? "..." : "➤"}
                 </button>
               </div>
             </form>
@@ -423,6 +454,21 @@ function App() {
           </div>
         </section>
       </main>
+
+      {previewImage && (
+        <div className="image-modal" onClick={() => setPreviewImage(null)}>
+          <div className="image-modal-content">
+            <button
+              type="button"
+              className="image-modal-close"
+              onClick={() => setPreviewImage(null)}
+            >
+              ×
+            </button>
+            <img src={previewImage} alt="Expanded uploaded screenshot" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
