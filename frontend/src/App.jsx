@@ -1,18 +1,32 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import "./App.css";
 
 const API_BASE_URL = "http://127.0.0.1:8000";
 
 function App() {
-  const [messages, setMessages] = useState([
+  const defaultMessages = [
     {
       role: "assistant",
       content:
-  "Hi, I’m NomadScholar AI. Ask me about scholarships, admissions, required documents, deadlines, or upload a screenshot of application requirements.",
+        "Hi, I’m NomadScholar AI. Ask me about scholarships, admissions, required documents, deadlines, or upload a screenshot of application requirements.",
       sources: [],
     },
-  ]);
+  ];
+
+  const [messages, setMessages] = useState(() => {
+    const savedMessages = localStorage.getItem("nomadscholar_messages");
+
+    if (savedMessages) {
+      try {
+        return JSON.parse(savedMessages);
+      } catch {
+        return defaultMessages;
+      }
+    }
+
+    return defaultMessages;
+  });
 
   const [question, setQuestion] = useState("");
   const [image, setImage] = useState(null);
@@ -28,6 +42,10 @@ function App() {
     "What should I prepare for Erasmus Mundus?",
     "Can you guarantee I will get accepted?",
   ];
+
+  useEffect(() => {
+    localStorage.setItem("nomadscholar_messages", JSON.stringify(messages));
+  }, [messages]);
 
   function buildHistory() {
     const conversation = messages.filter(
@@ -178,6 +196,14 @@ function App() {
     setQuestion(exampleQuestion);
   }
 
+  function clearChat() {
+    setMessages(defaultMessages);
+    setQuestion("");
+    setImage(null);
+    setChecklistResult(null);
+    localStorage.removeItem("nomadscholar_messages");
+  }
+
   return (
     <div className="app">
       <aside className="sidebar">
@@ -199,6 +225,13 @@ function App() {
             <li>Pydantic structured output</li>
             <li>FastAPI + React architecture</li>
           </ul>
+        </div>
+
+        <div className="panel">
+          <h2>Conversation</h2>
+          <button type="button" className="clear-chat-button" onClick={clearChat}>
+            Start new chat
+          </button>
         </div>
 
         <div className="panel">
@@ -322,7 +355,9 @@ function App() {
                   <input
                     type="file"
                     accept="image/png,image/jpeg,image/jpg"
-                    onChange={(event) => setImage(event.target.files[0] || null)}
+                    onChange={(event) =>
+                      setImage(event.target.files[0] || null)
+                    }
                   />
                   ＋
                 </label>
@@ -340,7 +375,11 @@ function App() {
                   }}
                 />
 
-                <button className="composer-send-button" type="submit" disabled={loading}>
+                <button
+                  className="composer-send-button"
+                  type="submit"
+                  disabled={loading}
+                >
                   {loading ? "..." : "➤"}
                 </button>
               </div>
@@ -386,7 +425,9 @@ function App() {
                   <>
                     <div className="result-card deadline-card">
                       <span className="result-label">Deadline</span>
-                      <strong>{checklistResult.deadline || "Not mentioned"}</strong>
+                      <strong>
+                        {checklistResult.deadline || "Not mentioned"}
+                      </strong>
                     </div>
 
                     <div className="result-card">
@@ -398,7 +439,9 @@ function App() {
                           ))}
                         </ul>
                       ) : (
-                        <p className="empty-result">No required documents detected.</p>
+                        <p className="empty-result">
+                          No required documents detected.
+                        </p>
                       )}
                     </div>
 
@@ -411,7 +454,9 @@ function App() {
                           ))}
                         </ul>
                       ) : (
-                        <p className="empty-result">No eligibility notes detected.</p>
+                        <p className="empty-result">
+                          No eligibility notes detected.
+                        </p>
                       )}
                     </div>
 
@@ -424,7 +469,9 @@ function App() {
                           ))}
                         </ul>
                       ) : (
-                        <p className="empty-result">No major missing information detected.</p>
+                        <p className="empty-result">
+                          No major missing information detected.
+                        </p>
                       )}
                     </div>
 
@@ -437,7 +484,9 @@ function App() {
                           ))}
                         </ol>
                       ) : (
-                        <p className="empty-result">No next steps generated.</p>
+                        <p className="empty-result">
+                          No next steps generated.
+                        </p>
                       )}
                     </div>
 
@@ -457,7 +506,10 @@ function App() {
 
       {previewImage && (
         <div className="image-modal" onClick={() => setPreviewImage(null)}>
-          <div className="image-modal-content">
+          <div
+            className="image-modal-content"
+            onClick={(event) => event.stopPropagation()}
+          >
             <button
               type="button"
               className="image-modal-close"

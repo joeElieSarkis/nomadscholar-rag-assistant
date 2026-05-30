@@ -523,6 +523,19 @@ input {
   font-size: 1rem;
 }
 
+.clear-chat-button {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.08);
+  color: #f8f4ec;
+  border: 1px solid rgba(199, 234, 225, 0.16);
+  box-shadow: none;
+}
+
+.clear-chat-button:hover {
+  background: rgba(20, 184, 166, 0.16);
+  box-shadow: none;
+}
+
 /* General buttons */
 
 button {
