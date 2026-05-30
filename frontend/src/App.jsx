@@ -29,7 +29,6 @@ function isLowQualityTitle(text) {
   }
 
   const hasEnoughLetters = /[a-zA-Z\u0600-\u06FF]{4,}/.test(cleaned);
-
   return !hasEnoughLetters;
 }
 

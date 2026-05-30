@@ -93,6 +93,19 @@ button:disabled {
   grid-template-columns: 74px 1fr;
 }
 
+.sidebar {
+  height: 100vh;
+  background:
+    linear-gradient(180deg, #0b1f1a 0%, #102a25 55%, #17352f 100%);
+  color: white;
+  padding: 1.25rem;
+  display: grid;
+  grid-template-rows: auto 230px 230px 1fr;
+  gap: 0.85rem;
+  overflow: hidden;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
 .app.sidebar-collapsed .sidebar {
   padding: 1rem 0.7rem;
   grid-template-rows: auto 1fr;
@@ -116,19 +129,6 @@ button:disabled {
 
 .app.sidebar-collapsed .sidebar-collapse-button {
   margin-top: 0.65rem;
-}
-
-.sidebar {
-  height: 100vh;
-  background:
-    linear-gradient(180deg, #0b1f1a 0%, #102a25 55%, #17352f 100%);
-  color: white;
-  padding: 1.25rem;
-  display: grid;
-  grid-template-rows: auto 230px auto 1fr;
-  gap: 0.85rem;
-  overflow: hidden;
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .brand-row {
@@ -208,7 +208,9 @@ button:disabled {
   color: #f8f4ec;
 }
 
-.conversation-panel {
+.conversation-panel,
+.examples-panel,
+.disclaimer {
   height: 230px;
   min-height: 230px;
   max-height: 230px;
@@ -347,7 +349,6 @@ button:disabled {
 }
 
 .disclaimer {
-  align-self: end;
   background: rgba(217, 119, 6, 0.12);
   border-color: rgba(245, 158, 11, 0.22);
 }
@@ -920,126 +921,106 @@ button:disabled {
 
 @media (max-width: 1250px) {
   body {
-    overflow: auto;
+    overflow: hidden;
   }
 
   .app {
-    height: auto;
+    height: 100vh;
     min-height: 100vh;
-    grid-template-columns: 1fr;
-    overflow: visible;
+    grid-template-columns: 300px minmax(0, 1fr);
+    overflow: hidden;
+  }
+
+  .app.sidebar-collapsed {
+    grid-template-columns: 74px minmax(0, 1fr);
   }
 
   .sidebar {
-    height: auto;
-    min-height: auto;
-    display: grid;
-    grid-template-columns: minmax(220px, 0.8fr) minmax(220px, 1fr) minmax(220px, 1fr);
-    grid-template-rows: auto auto;
-    align-items: start;
-    overflow: visible;
-  }
-
-  .brand-row {
-    grid-column: 1 / -1;
-  }
-
-  .conversation-panel {
-    height: 220px;
-    min-height: 220px;
-    max-height: 220px;
-  }
-
-  .chat-list {
-    height: 158px;
-  }
-
-  .disclaimer {
-    align-self: stretch;
-  }
-
-  .main {
-    height: auto;
-    overflow: visible;
-  }
-
-  .content-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .messages {
-    height: 460px;
-  }
-
-  .checklist-card {
-    min-height: 640px;
-  }
-}
-
-@media (max-width: 1250px) {
-  body {
-    overflow: auto;
-  }
-
-  .app {
-    height: auto;
-    min-height: 100vh;
-    grid-template-columns: 74px 1fr;
-    overflow: visible;
-  }
-
-  .app:not(.sidebar-collapsed) {
-    grid-template-columns: 300px 1fr;
-  }
-
-  .sidebar {
-    height: auto;
+    height: 100vh;
     min-height: 100vh;
   }
 
   .main {
-    height: auto;
-    overflow: visible;
+    height: 100vh;
+    min-width: 0;
+    overflow: hidden;
+    padding: 1rem;
+  }
+
+  .hero {
+    padding: 1rem 1.15rem;
+  }
+
+  .hero h2 {
+    font-size: 1.35rem;
+  }
+
+  .hero p {
+    font-size: 0.88rem;
   }
 
   .content-grid {
+    min-width: 0;
     grid-template-columns: 1fr;
   }
 
+  .chat-card,
+  .checklist-card {
+    min-width: 0;
+  }
+
   .messages {
-    height: 460px;
+    height: auto;
   }
 
   .checklist-card {
-    min-height: 640px;
+    display: none;
   }
 }
 
 @media (max-width: 860px) {
+  body {
+    overflow: auto;
+  }
+
   .app,
-  .app:not(.sidebar-collapsed),
   .app.sidebar-collapsed {
+    height: auto;
+    min-height: 100vh;
     grid-template-columns: 1fr;
+    overflow: visible;
   }
 
   .sidebar {
     min-height: auto;
     height: auto;
+    grid-template-rows: auto 230px 230px 230px;
   }
 
   .app.sidebar-collapsed .sidebar {
     display: none;
   }
 
-  .app.sidebar-collapsed {
-    grid-template-columns: 1fr;
+  .main {
+    height: auto;
+    overflow: visible;
+    padding: 0.9rem;
   }
 
   .hero h2 {
     font-size: 1.25rem;
   }
 
-  .main {
-    padding: 0.9rem;
+  .content-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .messages {
+    height: 460px;
+  }
+
+  .checklist-card {
+    display: grid;
+    min-height: 640px;
   }
 }
