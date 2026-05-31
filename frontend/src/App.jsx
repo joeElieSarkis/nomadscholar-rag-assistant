@@ -123,10 +123,18 @@ function isEmptyChat(chat) {
 
 function loadSavedChats() {
   const savedChats = localStorage.getItem("nomadscholar_chats");
-  const activeChatId = localStorage.getItem("nomadscholar_active_chat_id");
+  const sessionActiveChatId = sessionStorage.getItem(
+    "nomadscholar_session_active_chat_id"
+  );
 
   if (!savedChats) {
     const initialChat = createNewChat();
+
+    sessionStorage.setItem(
+      "nomadscholar_session_active_chat_id",
+      initialChat.id
+    );
+
     return { chats: [initialChat], activeChatId: initialChat.id };
   }
 
@@ -135,6 +143,12 @@ function loadSavedChats() {
 
     if (!Array.isArray(parsedChats) || parsedChats.length === 0) {
       const initialChat = createNewChat();
+
+      sessionStorage.setItem(
+        "nomadscholar_session_active_chat_id",
+        initialChat.id
+      );
+
       return { chats: [initialChat], activeChatId: initialChat.id };
     }
 
@@ -152,14 +166,50 @@ function loadSavedChats() {
         : [],
     }));
 
-    const validActiveChat = cleanedChats.some((chat) => chat.id === activeChatId);
+    const sessionChatStillExists = cleanedChats.some(
+      (chat) => chat.id === sessionActiveChatId
+    );
+
+    if (sessionActiveChatId && sessionChatStillExists) {
+      return {
+        chats: cleanedChats,
+        activeChatId: sessionActiveChatId,
+      };
+    }
+
+    const existingEmptyChat = cleanedChats.find((chat) => isEmptyChat(chat));
+
+    if (existingEmptyChat) {
+      sessionStorage.setItem(
+        "nomadscholar_session_active_chat_id",
+        existingEmptyChat.id
+      );
+
+      return {
+        chats: cleanedChats,
+        activeChatId: existingEmptyChat.id,
+      };
+    }
+
+    const freshChat = createNewChat();
+
+    sessionStorage.setItem(
+      "nomadscholar_session_active_chat_id",
+      freshChat.id
+    );
 
     return {
-      chats: cleanedChats,
-      activeChatId: validActiveChat ? activeChatId : cleanedChats[0].id,
+      chats: [freshChat, ...cleanedChats],
+      activeChatId: freshChat.id,
     };
   } catch {
     const initialChat = createNewChat();
+
+    sessionStorage.setItem(
+      "nomadscholar_session_active_chat_id",
+      initialChat.id
+    );
+
     return { chats: [initialChat], activeChatId: initialChat.id };
   }
 }
@@ -199,7 +249,7 @@ function App() {
 
   useEffect(() => {
     localStorage.setItem("nomadscholar_chats", JSON.stringify(chats));
-    localStorage.setItem("nomadscholar_active_chat_id", activeChatId);
+    sessionStorage.setItem("nomadscholar_session_active_chat_id", activeChatId);
   }, [chats, activeChatId]);
 
   function clearDraftState() {

@@ -118,7 +118,7 @@ def answer_question(question, history=None, image_text=""):
             "answer": (
                 "Hello! I’m NomadScholar AI. I can help you understand scholarship and university "
                 "application requirements, prepare document checklists, compare official guidance, "
-                "and explain screenshots of admissions or scholarship pages.\n\n"
+                "and explain screenshots or PDFs of admissions or scholarship pages.\n\n"
                 "What are you applying for?"
             ),
             "sources": [],
