@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
+import jsPDF from "jspdf";
 import "./App.css";
 
 const API_BASE_URL = "http://127.0.0.1:8000";
@@ -215,6 +216,131 @@ function App() {
   function clearChecklistState() {
   setChecklistText("");
   setChecklistResult(null);
+}
+
+function downloadChecklistPdf() {
+  if (!checklistResult || checklistResult.error) return;
+
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "pt",
+    format: "a4",
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 48;
+  const maxWidth = pageWidth - margin * 2;
+  let y = 56;
+
+  function addPageIfNeeded(extraHeight = 40) {
+    if (y + extraHeight > pageHeight - margin) {
+      doc.addPage();
+      y = 56;
+    }
+  }
+
+  function addTitle(text) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(20);
+    doc.setTextColor(13, 27, 42);
+    doc.text(text, margin, y);
+    y += 30;
+  }
+
+  function addSection(title) {
+    addPageIfNeeded(34);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(35, 87, 137);
+    doc.text(title.toUpperCase(), margin, y);
+    y += 18;
+  }
+
+  function addParagraph(text) {
+    addPageIfNeeded(32);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(23, 33, 43);
+
+    const lines = doc.splitTextToSize(text || "Not mentioned", maxWidth);
+    lines.forEach((line) => {
+      addPageIfNeeded(15);
+      doc.text(line, margin, y);
+      y += 14;
+    });
+
+    y += 8;
+  }
+
+  function addList(items) {
+    if (!items || items.length === 0) {
+      addParagraph("None detected.");
+      return;
+    }
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(23, 33, 43);
+
+    items.forEach((item) => {
+      const lines = doc.splitTextToSize(String(item), maxWidth - 18);
+      addPageIfNeeded(18);
+
+      doc.text("•", margin, y);
+      doc.text(lines[0], margin + 18, y);
+      y += 14;
+
+      lines.slice(1).forEach((line) => {
+        addPageIfNeeded(15);
+        doc.text(line, margin + 18, y);
+        y += 14;
+      });
+
+      y += 4;
+    });
+
+    y += 8;
+  }
+
+  addTitle("NomadScholar AI Checklist");
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(100, 113, 129);
+  doc.text("Generated from extracted scholarship/admissions information.", margin, y);
+  y += 28;
+
+  addSection("Deadline");
+  addParagraph(checklistResult.deadline || "Not mentioned");
+
+  addSection("Required documents");
+  addList(checklistResult.required_documents);
+
+  addSection("Eligibility notes");
+  addList(checklistResult.eligibility_notes);
+
+  addSection("Missing information");
+  addList(checklistResult.missing_information);
+
+  addSection("Next steps");
+  addList(checklistResult.next_steps);
+
+  const pageCount = doc.internal.getNumberOfPages();
+
+  for (let page = 1; page <= pageCount; page += 1) {
+    doc.setPage(page);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(130, 145, 162);
+    doc.text(
+      `NomadScholar AI • Page ${page} of ${pageCount}`,
+      margin,
+      pageHeight - 24
+    );
+  }
+
+  doc.save("nomadscholar-checklist.pdf");
 }
 
   function switchChat(chatId) {
@@ -989,8 +1115,17 @@ function App() {
               >
                 Clear
               </button>
-            </div>
 
+              {checklistResult && !checklistResult.error && (
+                <button
+                  className="download-checklist-button"
+                  type="button"
+                  onClick={downloadChecklistPdf}
+                >
+                  PDF
+                </button>
+              )}
+            </div>
             {checklistResult && (
               <div className="checklist-result">
                 {checklistResult.error ? (

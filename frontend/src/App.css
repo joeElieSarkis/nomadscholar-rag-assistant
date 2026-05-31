@@ -1488,7 +1488,7 @@ button:disabled {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 1fr auto;
+  grid-template-columns: 1fr auto auto;
   gap: 0.55rem;
 }
 
@@ -1507,6 +1507,19 @@ button:disabled {
 
 .clear-checklist-button:hover {
   background: rgba(47, 111, 174, 0.13);
+  box-shadow: none;
+  filter: none;
+}
+
+.download-checklist-button {
+  background: var(--ink-900);
+  color: #fffaf0;
+  box-shadow: none;
+  padding-inline: 0.9rem;
+}
+
+.download-checklist-button:hover {
+  background: var(--ink-800);
   box-shadow: none;
   filter: none;
 }
