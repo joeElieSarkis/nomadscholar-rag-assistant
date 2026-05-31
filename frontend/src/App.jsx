@@ -4,14 +4,51 @@ import "./App.css";
 
 const API_BASE_URL = "http://127.0.0.1:8000";
 
-const DEFAULT_MESSAGES = [
-  {
-    role: "assistant",
-    content:
-      "Hi, I’m NomadScholar AI. Ask a question or upload a screenshot or PDF.",
-    sources: [],
-  },
-];
+const DEFAULT_MESSAGES = [];
+
+function GraduationIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="app-icon" aria-hidden="true">
+      <path d="M3.5 8.4 12 4.2l8.5 4.2L12 12.6 3.5 8.4Z" />
+      <path d="M7.4 10.7v4.5c0 1.5 2.1 2.8 4.6 2.8s4.6-1.3 4.6-2.8v-4.5" />
+      <path d="M19.2 9.2v4.3" />
+      <path d="M19.2 13.5c.7.5.9 1.2.7 2" />
+    </svg>
+  );
+}
+
+function JourneyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="journey-icon" aria-hidden="true">
+      <path d="M4.2 17.8C7.8 12 12.6 8.4 20 6.4" />
+      <path d="M15.7 5.6 20 6.4l-2.9 3.3" />
+      <path d="M5.3 18.2h4.1" />
+      <path d="M12 14.2h4.8" />
+      <circle cx="5.3" cy="18.2" r="1.25" />
+    </svg>
+  );
+}
+
+function ImageIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="attach-svg-icon" aria-hidden="true">
+      <rect x="4" y="5" width="16" height="14" rx="2.4" />
+      <path d="M7.4 16.4 10.8 13l2.4 2.2 1.7-1.7 2.7 2.9" />
+      <circle cx="8.7" cy="9.5" r="1.15" />
+    </svg>
+  );
+}
+
+function PdfIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="attach-svg-icon" aria-hidden="true">
+      <path d="M7 3.8h6.1L18 8.7v11.5H7V3.8Z" />
+      <path d="M13 4v5h5" />
+      <path d="M9.2 13h5.6" />
+      <path d="M9.2 16h3.8" />
+    </svg>
+  );
+}
 
 function isArabicText(text) {
   return /[\u0600-\u06FF]/.test(text || "");
@@ -96,11 +133,25 @@ function loadSavedChats() {
       return { chats: [initialChat], activeChatId: initialChat.id };
     }
 
-    const validActiveChat = parsedChats.some((chat) => chat.id === activeChatId);
+    const cleanedChats = parsedChats.map((chat) => ({
+      ...chat,
+      messages: Array.isArray(chat.messages)
+        ? chat.messages.filter(
+            (message) =>
+              !(
+                message.role === "assistant" &&
+                message.content ===
+                  "Hi, I’m NomadScholar AI. Ask a question or upload a screenshot or PDF."
+              )
+          )
+        : [],
+    }));
+
+    const validActiveChat = cleanedChats.some((chat) => chat.id === activeChatId);
 
     return {
-      chats: parsedChats,
-      activeChatId: validActiveChat ? activeChatId : parsedChats[0].id,
+      chats: cleanedChats,
+      activeChatId: validActiveChat ? activeChatId : cleanedChats[0].id,
     };
   } catch {
     const initialChat = createNewChat();
@@ -111,6 +162,8 @@ function loadSavedChats() {
 function App() {
   const savedState = loadSavedChats();
   const abortControllerRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const pdfInputRef = useRef(null);
 
   const [chats, setChats] = useState(savedState.chats);
   const [activeChatId, setActiveChatId] = useState(savedState.activeChatId);
@@ -125,10 +178,12 @@ function App() {
   const [editingMessageIndex, setEditingMessageIndex] = useState(null);
   const [editingText, setEditingText] = useState("");
   const [copiedMessageKey, setCopiedMessageKey] = useState(null);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
 
   const activeChat = chats.find((chat) => chat.id === activeChatId) || chats[0];
   const messages = activeChat?.messages || DEFAULT_MESSAGES;
   const isActiveChatLoading = loadingChatId === activeChatId;
+  const hasStartedChat = messages.some((message) => message.role === "user");
 
   const exampleQuestions = [
     "What documents do I need for a DAAD scholarship?",
@@ -145,6 +200,7 @@ function App() {
   function clearDraftState() {
     setQuestion("");
     setImage(null);
+    setAttachMenuOpen(false);
   }
 
   function clearEditingState() {
@@ -175,6 +231,7 @@ function App() {
 
       const updatedChat = updatedChats.find((chat) => chat.id === chatId);
       const otherChats = updatedChats.filter((chat) => chat.id !== chatId);
+
       return updatedChat ? [updatedChat, ...otherChats] : updatedChats;
     });
   }
@@ -316,7 +373,11 @@ function App() {
     try {
       const data = fileWasAttached
         ? await sendFileQuestion(finalQuestion, controller.signal)
-        : await sendTextQuestion(finalQuestion, messagesWithUserQuestion, controller.signal);
+        : await sendTextQuestion(
+            finalQuestion,
+            messagesWithUserQuestion,
+            controller.signal
+          );
 
       const assistantMessage = {
         role: "assistant",
@@ -487,6 +548,22 @@ function App() {
     setQuestion(exampleQuestion);
   }
 
+  function handleAttachedFile(file) {
+    if (!file) return;
+    setImage(file);
+    setAttachMenuOpen(false);
+  }
+
+  function openImagePicker() {
+    setAttachMenuOpen(false);
+    imageInputRef.current?.click();
+  }
+
+  function openPdfPicker() {
+    setAttachMenuOpen(false);
+    pdfInputRef.current?.click();
+  }
+
   return (
     <div className={`app ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
       <div className="aurora aurora-one" />
@@ -498,7 +575,7 @@ function App() {
         <div className="brand-row">
           <div className="brand">
             <div className="logo-orb">
-              <span>🎓</span>
+              <GraduationIcon />
             </div>
             <div className="brand-copy">
               <h1>NomadScholar</h1>
@@ -533,7 +610,9 @@ function App() {
               {chats.map((chat) => (
                 <div
                   key={chat.id}
-                  className={`chat-list-item ${chat.id === activeChatId ? "active" : ""}`}
+                  className={`chat-list-item ${
+                    chat.id === activeChatId ? "active" : ""
+                  }`}
                 >
                   <button
                     type="button"
@@ -592,8 +671,6 @@ function App() {
 
           <div className="hero-visual" aria-hidden="true">
             <div className="hero-orbit">
-              <div className="orbit-ring ring-one" />
-              <div className="orbit-ring ring-two" />
               <div className="orbit-core" />
               <div className="float-orb orb-one" />
               <div className="float-orb orb-two" />
@@ -610,6 +687,25 @@ function App() {
             </div>
 
             <div className="messages">
+              {!hasStartedChat && !isActiveChatLoading && (
+                <div className="empty-chat-state">
+                  <div className="welcome-stage">
+                    <div className="welcome-glow" />
+                    <div className="welcome-orbit orbit-a" />
+                    <div className="welcome-card-mini card-mini-one" />
+                    <div className="welcome-card-mini card-mini-two" />
+                    <div className="empty-chat-orb">
+                      <JourneyIcon />
+                    </div>
+                  </div>
+
+                  <h2>Turn your study plans into a real opportunity.</h2>
+                  <p>
+                    Ask about scholarships, admissions, documents, or upload a PDF.
+                  </p>
+                </div>
+              )}
+
               {messages.map((message, index) => {
                 const messageIsArabic = isArabicText(message.content);
                 const messageKey = `${activeChatId}-${message.role}-${index}`;
@@ -624,7 +720,9 @@ function App() {
                 return (
                   <div key={messageKey} className={`message ${message.role}`}>
                     <div
-                      className={`message-bubble ${messageIsArabic ? "rtl-bubble" : ""}`}
+                      className={`message-bubble ${
+                        messageIsArabic ? "rtl-bubble" : ""
+                      }`}
                       dir={messageIsArabic ? "rtl" : "ltr"}
                     >
                       <div className="message-role">
@@ -682,7 +780,9 @@ function App() {
                         </div>
                       ) : (
                         <div
-                          className={`message-content ${messageIsArabic ? "rtl-content" : ""}`}
+                          className={`message-content ${
+                            messageIsArabic ? "rtl-content" : ""
+                          }`}
                         >
                           <ReactMarkdown>{message.content}</ReactMarkdown>
                         </div>
@@ -734,7 +834,7 @@ function App() {
                       <span />
                       <span />
                       <span />
-                      Retrieving sources and generating answer...
+                      Retrieving sources and generating answer.
                     </div>
                   </div>
                 </div>
@@ -752,19 +852,67 @@ function App() {
               )}
 
               <div className="composer">
-                <label className="composer-attach-button" title="Attach image or PDF">
+                <div className="attach-menu-wrapper">
+                  <button
+                    type="button"
+                    className="composer-attach-button"
+                    title="Attach file"
+                    onClick={() => setAttachMenuOpen((current) => !current)}
+                  >
+                    ＋
+                  </button>
+
+                  {attachMenuOpen && (
+                    <div className="attach-menu">
+                      <button type="button" onClick={openImagePicker}>
+                        <span className="attach-menu-icon">
+                          <ImageIcon />
+                        </span>
+                        <span>
+                          <strong>Attach picture</strong>
+                          <small>PNG, JPG, JPEG</small>
+                        </span>
+                      </button>
+
+                      <button type="button" onClick={openPdfPicker}>
+                        <span className="attach-menu-icon">
+                          <PdfIcon />
+                        </span>
+                        <span>
+                          <strong>Attach PDF</strong>
+                          <small>Digital PDF text</small>
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
                   <input
+                    ref={imageInputRef}
                     type="file"
-                    accept="image/png,image/jpeg,image/jpg,application/pdf"
-                    onChange={(event) => setImage(event.target.files[0] || null)}
+                    accept="image/png,image/jpeg,image/jpg"
+                    className="hidden-file-input"
+                    onChange={(event) => {
+                      handleAttachedFile(event.target.files[0] || null);
+                      event.target.value = "";
+                    }}
                   />
-                  ＋
-                </label>
+
+                  <input
+                    ref={pdfInputRef}
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden-file-input"
+                    onChange={(event) => {
+                      handleAttachedFile(event.target.files[0] || null);
+                      event.target.value = "";
+                    }}
+                  />
+                </div>
 
                 <textarea
                   value={question}
                   onChange={(event) => setQuestion(event.target.value)}
-                  placeholder="Ask in English or Arabic..."
+                  placeholder="Ask in English or Arabic."
                   rows={1}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" && !event.shiftKey) {
@@ -797,7 +945,7 @@ function App() {
               className="checklist-textarea"
               value={checklistText}
               onChange={(event) => setChecklistText(event.target.value)}
-              placeholder="Paste application requirements here..."
+              placeholder="Paste application requirements here."
               rows={10}
             />
 
