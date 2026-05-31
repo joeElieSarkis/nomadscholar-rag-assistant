@@ -51,6 +51,30 @@ function PdfIcon() {
   );
 }
 
+function MoonIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="theme-icon" aria-hidden="true">
+      <path d="M20.2 15.3A8.2 8.2 0 0 1 8.7 3.8 8.7 8.7 0 1 0 20.2 15.3Z" />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="theme-icon" aria-hidden="true">
+      <circle cx="12" cy="12" r="4.2" />
+      <path d="M12 2.8v2.1" />
+      <path d="M12 19.1v2.1" />
+      <path d="M4.9 4.9l1.5 1.5" />
+      <path d="M17.6 17.6l1.5 1.5" />
+      <path d="M2.8 12h2.1" />
+      <path d="M19.1 12h2.1" />
+      <path d="M4.9 19.1l1.5-1.5" />
+      <path d="M17.6 6.4l1.5-1.5" />
+    </svg>
+  );
+}
+
 function isArabicText(text) {
   return /[\u0600-\u06FF]/.test(text || "");
 }
@@ -193,10 +217,7 @@ function loadSavedChats() {
 
     const freshChat = createNewChat();
 
-    sessionStorage.setItem(
-      "nomadscholar_session_active_chat_id",
-      freshChat.id
-    );
+    sessionStorage.setItem("nomadscholar_session_active_chat_id", freshChat.id);
 
     return {
       chats: [freshChat, ...cleanedChats],
@@ -212,6 +233,10 @@ function loadSavedChats() {
 
     return { chats: [initialChat], activeChatId: initialChat.id };
   }
+}
+
+function getSavedTheme() {
+  return localStorage.getItem("nomadscholar_theme") === "dark" ? "dark" : "light";
 }
 
 function App() {
@@ -234,6 +259,7 @@ function App() {
   const [editingText, setEditingText] = useState("");
   const [copiedMessageKey, setCopiedMessageKey] = useState(null);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
+  const [theme, setTheme] = useState(getSavedTheme);
 
   const activeChat = chats.find((chat) => chat.id === activeChatId) || chats[0];
   const messages = activeChat?.messages || DEFAULT_MESSAGES;
@@ -252,6 +278,10 @@ function App() {
     sessionStorage.setItem("nomadscholar_session_active_chat_id", activeChatId);
   }, [chats, activeChatId]);
 
+  useEffect(() => {
+    localStorage.setItem("nomadscholar_theme", theme);
+  }, [theme]);
+
   function clearDraftState() {
     setQuestion("");
     setImage(null);
@@ -264,134 +294,9 @@ function App() {
   }
 
   function clearChecklistState() {
-  setChecklistText("");
-  setChecklistResult(null);
-}
-
-function downloadChecklistPdf() {
-  if (!checklistResult || checklistResult.error) return;
-
-  const doc = new jsPDF({
-    orientation: "portrait",
-    unit: "pt",
-    format: "a4",
-  });
-
-  const pageWidth = doc.internal.pageSize.getWidth();
-  const pageHeight = doc.internal.pageSize.getHeight();
-  const margin = 48;
-  const maxWidth = pageWidth - margin * 2;
-  let y = 56;
-
-  function addPageIfNeeded(extraHeight = 40) {
-    if (y + extraHeight > pageHeight - margin) {
-      doc.addPage();
-      y = 56;
-    }
+    setChecklistText("");
+    setChecklistResult(null);
   }
-
-  function addTitle(text) {
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(20);
-    doc.setTextColor(13, 27, 42);
-    doc.text(text, margin, y);
-    y += 30;
-  }
-
-  function addSection(title) {
-    addPageIfNeeded(34);
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.setTextColor(35, 87, 137);
-    doc.text(title.toUpperCase(), margin, y);
-    y += 18;
-  }
-
-  function addParagraph(text) {
-    addPageIfNeeded(32);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(23, 33, 43);
-
-    const lines = doc.splitTextToSize(text || "Not mentioned", maxWidth);
-    lines.forEach((line) => {
-      addPageIfNeeded(15);
-      doc.text(line, margin, y);
-      y += 14;
-    });
-
-    y += 8;
-  }
-
-  function addList(items) {
-    if (!items || items.length === 0) {
-      addParagraph("None detected.");
-      return;
-    }
-
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.setTextColor(23, 33, 43);
-
-    items.forEach((item) => {
-      const lines = doc.splitTextToSize(String(item), maxWidth - 18);
-      addPageIfNeeded(18);
-
-      doc.text("•", margin, y);
-      doc.text(lines[0], margin + 18, y);
-      y += 14;
-
-      lines.slice(1).forEach((line) => {
-        addPageIfNeeded(15);
-        doc.text(line, margin + 18, y);
-        y += 14;
-      });
-
-      y += 4;
-    });
-
-    y += 8;
-  }
-
-  addTitle("NomadScholar AI Checklist");
-
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(10);
-  doc.setTextColor(100, 113, 129);
-  doc.text("Generated from extracted scholarship/admissions information.", margin, y);
-  y += 28;
-
-  addSection("Deadline");
-  addParagraph(checklistResult.deadline || "Not mentioned");
-
-  addSection("Required documents");
-  addList(checklistResult.required_documents);
-
-  addSection("Eligibility notes");
-  addList(checklistResult.eligibility_notes);
-
-  addSection("Missing information");
-  addList(checklistResult.missing_information);
-
-  addSection("Next steps");
-  addList(checklistResult.next_steps);
-
-  const pageCount = doc.internal.getNumberOfPages();
-
-  for (let page = 1; page <= pageCount; page += 1) {
-    doc.setPage(page);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(130, 145, 162);
-    doc.text(
-      `NomadScholar AI • Page ${page} of ${pageCount}`,
-      margin,
-      pageHeight - 24
-    );
-  }
-
-  doc.save("nomadscholar-checklist.pdf");
-}
 
   function switchChat(chatId) {
     if (chatId === activeChatId) return;
@@ -463,6 +368,7 @@ function downloadChecklistPdf() {
         setActiveChatId(newChat.id);
         clearDraftState();
         clearEditingState();
+        clearChecklistState();
         return [newChat];
       }
 
@@ -738,8 +644,137 @@ function downloadChecklistPdf() {
   }
 
   function clearChecklist() {
-    setChecklistText("");
-    setChecklistResult(null);
+    clearChecklistState();
+  }
+
+  function downloadChecklistPdf() {
+    if (!checklistResult || checklistResult.error) return;
+
+    const doc = new jsPDF({
+      orientation: "portrait",
+      unit: "pt",
+      format: "a4",
+    });
+
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const margin = 48;
+    const maxWidth = pageWidth - margin * 2;
+    let y = 56;
+
+    function addPageIfNeeded(extraHeight = 40) {
+      if (y + extraHeight > pageHeight - margin) {
+        doc.addPage();
+        y = 56;
+      }
+    }
+
+    function addTitle(text) {
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(20);
+      doc.setTextColor(13, 27, 42);
+      doc.text(text, margin, y);
+      y += 30;
+    }
+
+    function addSection(title) {
+      addPageIfNeeded(34);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(11);
+      doc.setTextColor(35, 87, 137);
+      doc.text(title.toUpperCase(), margin, y);
+      y += 18;
+    }
+
+    function addParagraph(text) {
+      addPageIfNeeded(32);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(23, 33, 43);
+
+      const lines = doc.splitTextToSize(text || "Not mentioned", maxWidth);
+
+      lines.forEach((line) => {
+        addPageIfNeeded(15);
+        doc.text(line, margin, y);
+        y += 14;
+      });
+
+      y += 8;
+    }
+
+    function addList(items) {
+      if (!items || items.length === 0) {
+        addParagraph("None detected.");
+        return;
+      }
+
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(10);
+      doc.setTextColor(23, 33, 43);
+
+      items.forEach((item) => {
+        const lines = doc.splitTextToSize(String(item), maxWidth - 18);
+        addPageIfNeeded(18);
+
+        doc.text("•", margin, y);
+        doc.text(lines[0], margin + 18, y);
+        y += 14;
+
+        lines.slice(1).forEach((line) => {
+          addPageIfNeeded(15);
+          doc.text(line, margin + 18, y);
+          y += 14;
+        });
+
+        y += 4;
+      });
+
+      y += 8;
+    }
+
+    addTitle("NomadScholar AI Checklist");
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    doc.setTextColor(100, 113, 129);
+    doc.text(
+      "Generated from extracted scholarship/admissions information.",
+      margin,
+      y
+    );
+    y += 28;
+
+    addSection("Deadline");
+    addParagraph(checklistResult.deadline || "Not mentioned");
+
+    addSection("Required documents");
+    addList(checklistResult.required_documents);
+
+    addSection("Eligibility notes");
+    addList(checklistResult.eligibility_notes);
+
+    addSection("Missing information");
+    addList(checklistResult.missing_information);
+
+    addSection("Next steps");
+    addList(checklistResult.next_steps);
+
+    const pageCount = doc.internal.getNumberOfPages();
+
+    for (let page = 1; page <= pageCount; page += 1) {
+      doc.setPage(page);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8);
+      doc.setTextColor(130, 145, 162);
+      doc.text(
+        `NomadScholar AI • Page ${page} of ${pageCount}`,
+        margin,
+        pageHeight - 24
+      );
+    }
+
+    doc.save("nomadscholar-checklist.pdf");
   }
 
   function handleExampleClick(exampleQuestion) {
@@ -762,8 +797,16 @@ function downloadChecklistPdf() {
     pdfInputRef.current?.click();
   }
 
+  function toggleTheme() {
+    setTheme((currentTheme) => (currentTheme === "dark" ? "light" : "dark"));
+  }
+
   return (
-    <div className={`app ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+    <div
+      className={`app theme-${theme} ${
+        sidebarCollapsed ? "sidebar-collapsed" : ""
+      }`}
+    >
       <div className="aurora aurora-one" />
       <div className="aurora aurora-two" />
       <div className="aurora aurora-three" />
@@ -781,14 +824,25 @@ function downloadChecklistPdf() {
             </div>
           </div>
 
-          <button
-            type="button"
-            className="sidebar-collapse-button"
-            onClick={() => setSidebarCollapsed((current) => !current)}
-            title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
-          >
-            {sidebarCollapsed ? "☰" : "←"}
-          </button>
+          <div className="sidebar-actions">
+            <button
+              type="button"
+              className="theme-toggle-button"
+              onClick={toggleTheme}
+              title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            >
+              {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+            </button>
+
+            <button
+              type="button"
+              className="sidebar-collapse-button"
+              onClick={() => setSidebarCollapsed((current) => !current)}
+              title={sidebarCollapsed ? "Show sidebar" : "Hide sidebar"}
+            >
+              {sidebarCollapsed ? "☰" : "←"}
+            </button>
+          </div>
         </div>
 
         <div className="sidebar-shell">
@@ -1176,6 +1230,7 @@ function downloadChecklistPdf() {
                 </button>
               )}
             </div>
+
             {checklistResult && (
               <div className="checklist-result">
                 {checklistResult.error ? (
