@@ -8,7 +8,7 @@ const DEFAULT_MESSAGES = [
   {
     role: "assistant",
     content:
-      "Hi, I’m NomadScholar AI. Ask me about scholarships, admissions, required documents, deadlines, or upload a screenshot of application requirements.",
+      "Hi, I’m NomadScholar AI. Ask a question or upload a screenshot or PDF.",
     sources: [],
   },
 ];
@@ -20,33 +20,23 @@ function isArabicText(text) {
 function isLowQualityTitle(text) {
   const cleaned = text.trim();
 
-  if (cleaned.length < 4) {
-    return true;
-  }
-
-  if (/(.)\1{5,}/.test(cleaned)) {
-    return true;
-  }
+  if (cleaned.length < 4) return true;
+  if (/(.)\1{5,}/.test(cleaned)) return true;
 
   const hasEnoughLetters = /[a-zA-Z\u0600-\u06FF]{4,}/.test(cleaned);
-
   return !hasEnoughLetters;
 }
 
 function createChatTitle(messages) {
   const firstUserMessage = messages.find((message) => message.role === "user");
 
-  if (!firstUserMessage) {
-    return "New chat";
-  }
+  if (!firstUserMessage) return "New chat";
 
   const originalText = firstUserMessage.content.trim();
   const text = originalText.toLowerCase();
   const hasArabic = isArabicText(originalText);
 
-  if (isLowQualityTitle(originalText)) {
-    return "General question";
-  }
+  if (isLowQualityTitle(originalText)) return "General question";
 
   if (hasArabic) {
     if (originalText.includes("منحة") || originalText.includes("المستندات")) {
@@ -66,45 +56,15 @@ function createChatTitle(messages) {
       : `${originalText.slice(0, 24)}...`;
   }
 
-  if (text.includes("daad")) {
-    return "DAAD scholarship guidance";
-  }
-
-  if (text.includes("france") || text.includes("french")) {
-    return "France master’s options";
-  }
-
-  if (text.includes("erasmus")) {
-    return "Erasmus Mundus guidance";
-  }
-
-  if (text.includes("guarantee") || text.includes("accepted")) {
-    return "Admission guarantee question";
-  }
-
-  if (
-    text.includes("screenshot") ||
-    text.includes("image") ||
-    text.includes("uploaded")
-  ) {
-    return "Screenshot analysis";
-  }
-
-  if (text.includes("documents") || text.includes("requirements")) {
-    return "Application requirements";
-  }
-
-  if (text.includes("scholarship")) {
-    return "Scholarship guidance";
-  }
-
-  if (text.includes("master") || text.includes("masters")) {
-    return "Master’s application guidance";
-  }
-
-  if (text.includes("hello") || text.includes("hi") || text.includes("hey")) {
-    return "Welcome chat";
-  }
+  if (text.includes("daad")) return "DAAD scholarship guidance";
+  if (text.includes("france") || text.includes("french")) return "France study options";
+  if (text.includes("erasmus")) return "Erasmus Mundus guidance";
+  if (text.includes("guarantee") || text.includes("accepted")) return "Admission guarantee question";
+  if (text.includes("screenshot") || text.includes("image") || text.includes("uploaded")) return "File analysis";
+  if (text.includes("documents") || text.includes("requirements")) return "Application requirements";
+  if (text.includes("scholarship")) return "Scholarship guidance";
+  if (text.includes("master") || text.includes("masters")) return "Master’s application guidance";
+  if (text.includes("hello") || text.includes("hi") || text.includes("hey")) return "Welcome chat";
 
   return "General application question";
 }
@@ -125,11 +85,7 @@ function loadSavedChats() {
 
   if (!savedChats) {
     const initialChat = createNewChat();
-
-    return {
-      chats: [initialChat],
-      activeChatId: initialChat.id,
-    };
+    return { chats: [initialChat], activeChatId: initialChat.id };
   }
 
   try {
@@ -137,11 +93,7 @@ function loadSavedChats() {
 
     if (!Array.isArray(parsedChats) || parsedChats.length === 0) {
       const initialChat = createNewChat();
-
-      return {
-        chats: [initialChat],
-        activeChatId: initialChat.id,
-      };
+      return { chats: [initialChat], activeChatId: initialChat.id };
     }
 
     const validActiveChat = parsedChats.some((chat) => chat.id === activeChatId);
@@ -152,17 +104,12 @@ function loadSavedChats() {
     };
   } catch {
     const initialChat = createNewChat();
-
-    return {
-      chats: [initialChat],
-      activeChatId: initialChat.id,
-    };
+    return { chats: [initialChat], activeChatId: initialChat.id };
   }
 }
 
 function App() {
   const savedState = loadSavedChats();
-
   const abortControllerRef = useRef(null);
 
   const [chats, setChats] = useState(savedState.chats);
@@ -179,9 +126,7 @@ function App() {
   const [editingText, setEditingText] = useState("");
   const [copiedMessageKey, setCopiedMessageKey] = useState(null);
 
-  const activeChat =
-    chats.find((chat) => chat.id === activeChatId) || chats[0];
-
+  const activeChat = chats.find((chat) => chat.id === activeChatId) || chats[0];
   const messages = activeChat?.messages || DEFAULT_MESSAGES;
   const isActiveChatLoading = loadingChatId === activeChatId;
 
@@ -216,9 +161,7 @@ function App() {
   function updateChatMessages(chatId, nextMessages, moveToTop = false) {
     setChats((currentChats) => {
       const updatedChats = currentChats.map((chat) => {
-        if (chat.id !== chatId) {
-          return chat;
-        }
+        if (chat.id !== chatId) return chat;
 
         return {
           ...chat,
@@ -228,13 +171,10 @@ function App() {
         };
       });
 
-      if (!moveToTop) {
-        return updatedChats;
-      }
+      if (!moveToTop) return updatedChats;
 
       const updatedChat = updatedChats.find((chat) => chat.id === chatId);
       const otherChats = updatedChats.filter((chat) => chat.id !== chatId);
-
       return updatedChat ? [updatedChat, ...otherChats] : updatedChats;
     });
   }
@@ -251,12 +191,9 @@ function App() {
     clearEditingState();
     setChecklistResult(null);
 
-    if (!hasUserMessages) {
-      return;
-    }
+    if (!hasUserMessages) return;
 
     const newChat = createNewChat();
-
     setChats((currentChats) => [newChat, ...currentChats]);
     setActiveChatId(newChat.id);
   }
@@ -351,17 +288,15 @@ function App() {
   }
 
   function getFriendlyErrorMessage(error) {
-    if (error.name === "AbortError") {
-      return "Response stopped.";
-    }
+    if (error.name === "AbortError") return "Response stopped.";
 
     if (
       error.message.includes("RESOURCE_EXHAUSTED") ||
       error.message.includes("429")
     ) {
       return (
-        "The Gemini API quota was reached. Please wait about a minute and try again. "
-        + "If this keeps happening, the project may need a different API key, billing enabled, or a lower-traffic model."
+        "The Gemini API quota was reached. Please wait about a minute and try again. " +
+        "If this keeps happening, the project may need a different API key, billing enabled, or a lower-traffic model."
       );
     }
 
@@ -381,11 +316,7 @@ function App() {
     try {
       const data = fileWasAttached
         ? await sendFileQuestion(finalQuestion, controller.signal)
-        : await sendTextQuestion(
-            finalQuestion,
-            messagesWithUserQuestion,
-            controller.signal
-          );
+        : await sendTextQuestion(finalQuestion, messagesWithUserQuestion, controller.signal);
 
       const assistantMessage = {
         role: "assistant",
@@ -399,35 +330,18 @@ function App() {
         true
       );
     } catch (error) {
-      const stoppedByUser = error.name === "AbortError";
-
-      if (stoppedByUser) {
-        updateChatMessages(
-          chatIdForRequest,
-          [
-            ...messagesWithUserQuestion,
-            {
-              role: "assistant",
-              content: "Response stopped.",
-              sources: [],
-            },
-          ],
-          true
-        );
-      } else {
-        updateChatMessages(
-          chatIdForRequest,
-          [
-            ...messagesWithUserQuestion,
-            {
-              role: "assistant",
-              content: getFriendlyErrorMessage(error),
-              sources: [],
-            },
-          ],
-          true
-        );
-      }
+      updateChatMessages(
+        chatIdForRequest,
+        [
+          ...messagesWithUserQuestion,
+          {
+            role: "assistant",
+            content: getFriendlyErrorMessage(error),
+            sources: [],
+          },
+        ],
+        true
+      );
     } finally {
       setLoadingChatId(null);
       abortControllerRef.current = null;
@@ -444,9 +358,7 @@ function App() {
 
     const finalQuestion = question.trim();
 
-    if (!finalQuestion && !image) {
-      return;
-    }
+    if (!finalQuestion && !image) return;
 
     const chatIdForRequest = activeChatId;
     const fileWasAttached = Boolean(image);
@@ -487,9 +399,7 @@ function App() {
   async function regenerateFromEditedMessage(messageIndex, newContent) {
     const trimmedContent = newContent.trim();
 
-    if (!trimmedContent || loadingChatId) {
-      return;
-    }
+    if (!trimmedContent || loadingChatId) return;
 
     const chatIdForRequest = activeChatId;
     const messagesBeforeEdit = messages.slice(0, messageIndex);
@@ -514,10 +424,7 @@ function App() {
   }
 
   function beginEditMessage(index, content) {
-    if (loadingChatId) {
-      return;
-    }
-
+    if (loadingChatId) return;
     setEditingMessageIndex(index);
     setEditingText(content);
   }
@@ -539,9 +446,7 @@ function App() {
   }
 
   async function handleChecklistExtraction() {
-    if (!checklistText.trim()) {
-      return;
-    }
+    if (!checklistText.trim()) return;
 
     setChecklistLoading(true);
     setChecklistResult(null);
@@ -584,13 +489,20 @@ function App() {
 
   return (
     <div className={`app ${sidebarCollapsed ? "sidebar-collapsed" : ""}`}>
+      <div className="aurora aurora-one" />
+      <div className="aurora aurora-two" />
+      <div className="aurora aurora-three" />
+      <div className="mesh-grid" />
+
       <aside className="sidebar">
         <div className="brand-row">
           <div className="brand">
-            <div className="logo">🎓</div>
+            <div className="logo-orb">
+              <span>🎓</span>
+            </div>
             <div className="brand-copy">
-              <h1>NomadScholar AI</h1>
-              <p>Bilingual multimodal RAG assistant</p>
+              <h1>NomadScholar</h1>
+              <p>AI admissions guide</p>
             </div>
           </div>
 
@@ -604,95 +516,97 @@ function App() {
           </button>
         </div>
 
-        <div className="panel conversation-panel">
-          <div className="conversation-header">
-            <h2>Conversations</h2>
-            <button
-              type="button"
-              className="new-chat-button"
-              onClick={startNewChat}
-            >
-              New
-            </button>
-          </div>
-
-          <div className="chat-list">
-            {chats.map((chat) => (
-              <div
-                key={chat.id}
-                className={`chat-list-item ${
-                  chat.id === activeChatId ? "active" : ""
-                }`}
-              >
-                <button
-                  type="button"
-                  className="chat-title-button"
-                  onClick={() => switchChat(chat.id)}
-                >
-                  {chat.title}
-                </button>
-
-                <button
-                  type="button"
-                  className="delete-chat-button"
-                  onClick={() => deleteChat(chat.id)}
-                  title="Delete chat"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="panel examples-panel">
-          <h2>Try examples</h2>
-          <div className="examples">
-            {exampleQuestions.map((item) => (
+        <div className="sidebar-shell">
+          <section className="sidebar-block">
+            <div className="section-mini-header">
+              <h2>Chats</h2>
               <button
-                key={item}
                 type="button"
-                className="example-button"
-                onClick={() => handleExampleClick(item)}
+                className="new-chat-button"
+                onClick={startNewChat}
               >
-                {item}
+                New
               </button>
-            ))}
-          </div>
-        </div>
+            </div>
 
-        <div className="panel disclaimer">
-          <strong>Disclaimer</strong>
-          <p>
-            This assistant explains application information from retrieved
-            sources. It does not guarantee admission, scholarships, visas, or
-            funding.
-          </p>
+            <div className="chat-list">
+              {chats.map((chat) => (
+                <div
+                  key={chat.id}
+                  className={`chat-list-item ${chat.id === activeChatId ? "active" : ""}`}
+                >
+                  <button
+                    type="button"
+                    className="chat-title-button"
+                    onClick={() => switchChat(chat.id)}
+                  >
+                    <span className="chat-dot" />
+                    {chat.title}
+                  </button>
+
+                  <button
+                    type="button"
+                    className="delete-chat-button"
+                    onClick={() => deleteChat(chat.id)}
+                    title="Delete chat"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="sidebar-block">
+            <div className="section-mini-header">
+              <h2>Quick asks</h2>
+            </div>
+
+            <div className="examples">
+              {exampleQuestions.map((item) => (
+                <button
+                  key={item}
+                  type="button"
+                  className="example-button"
+                  onClick={() => handleExampleClick(item)}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+          </section>
+
+          <div className="sidebar-footer-note">
+            This assistant explains retrieved admissions information. It does not
+            guarantee admission, scholarships, visas, or funding.
+          </div>
         </div>
       </aside>
 
       <main className="main">
-        <section className="hero">
-          <p className="eyebrow">LLM course capstone project</p>
-          <h2>
-            Scholarship and university application guidance, grounded in
-            retrieved sources.
-          </h2>
-          <p>
-            Ask in English or Arabic. Upload screenshots or PDFs of requirements,
-            deadlines, or checklists. Get clear answers, source references, and
-            structured next steps.
-          </p>
+        <section className="hero minimal-hero">
+          <div className="hero-copy">
+            <h2>Scholarship and admissions guidance.</h2>
+            <p>Ask, upload, extract, and plan.</p>
+          </div>
+
+          <div className="hero-visual" aria-hidden="true">
+            <div className="hero-orbit">
+              <div className="orbit-ring ring-one" />
+              <div className="orbit-ring ring-two" />
+              <div className="orbit-core" />
+              <div className="float-orb orb-one" />
+              <div className="float-orb orb-two" />
+              <div className="float-orb orb-three" />
+            </div>
+          </div>
         </section>
 
         <section className="content-grid">
-          <div className="chat-card">
-            <div className="section-header">
-              <div>
-                <h3>Assistant</h3>
-                <p>Conversational RAG with optional image/PDF input</p>
-              </div>
-              <span>RAG chat</span>
+          <div className="chat-card chat-card-large">
+            <div className="section-header section-header-minimal">
+              <h3>Assistant</h3>
+              <span>Live</span>
             </div>
 
             <div className="messages">
@@ -708,14 +622,9 @@ function App() {
                   message.role === "user" || message.role === "assistant";
 
                 return (
-                  <div
-                    key={messageKey}
-                    className={`message ${message.role}`}
-                  >
+                  <div key={messageKey} className={`message ${message.role}`}>
                     <div
-                      className={`message-bubble ${
-                        messageIsArabic ? "rtl-bubble" : ""
-                      }`}
+                      className={`message-bubble ${messageIsArabic ? "rtl-bubble" : ""}`}
                       dir={messageIsArabic ? "rtl" : "ltr"}
                     >
                       <div className="message-role">
@@ -773,9 +682,7 @@ function App() {
                         </div>
                       ) : (
                         <div
-                          className={`message-content ${
-                            messageIsArabic ? "rtl-content" : ""
-                          }`}
+                          className={`message-content ${messageIsArabic ? "rtl-content" : ""}`}
                         >
                           <ReactMarkdown>{message.content}</ReactMarkdown>
                         </div>
@@ -822,8 +729,11 @@ function App() {
 
               {isActiveChatLoading && (
                 <div className="message assistant">
-                  <div className="message-bubble">
+                  <div className="message-bubble loading-bubble">
                     <div className="typing">
+                      <span />
+                      <span />
+                      <span />
                       Retrieving sources and generating answer...
                     </div>
                   </div>
@@ -877,19 +787,11 @@ function App() {
             </form>
           </div>
 
-          <div className="checklist-card">
-            <div className="section-header">
-              <div>
-                <h3>Checklist extractor</h3>
-                <p>Function calling / structured output</p>
-              </div>
+          <div className="checklist-card checklist-card-compact">
+            <div className="section-header section-header-minimal">
+              <h3>Checklist</h3>
               <span>JSON</span>
             </div>
-
-            <p className="small-text">
-              Paste scholarship or admissions text to extract deadline, required
-              documents, eligibility notes, missing information, and next steps.
-            </p>
 
             <textarea
               className="checklist-textarea"
@@ -906,7 +808,7 @@ function App() {
                 disabled={checklistLoading}
                 onClick={handleChecklistExtraction}
               >
-                {checklistLoading ? "Extracting..." : "Extract checklist"}
+                {checklistLoading ? "Extracting..." : "Extract"}
               </button>
 
               <button
@@ -939,9 +841,7 @@ function App() {
                           ))}
                         </ul>
                       ) : (
-                        <p className="empty-result">
-                          No required documents detected.
-                        </p>
+                        <p className="empty-result">No required documents detected.</p>
                       )}
                     </div>
 
@@ -954,9 +854,7 @@ function App() {
                           ))}
                         </ul>
                       ) : (
-                        <p className="empty-result">
-                          No eligibility notes detected.
-                        </p>
+                        <p className="empty-result">No eligibility notes detected.</p>
                       )}
                     </div>
 
