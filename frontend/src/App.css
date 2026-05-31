@@ -58,14 +58,22 @@
 }
 
 *::-webkit-scrollbar-thumb {
-  background: linear-gradient(180deg, rgba(47, 111, 174, 0.56), rgba(63, 143, 105, 0.48));
+  background: linear-gradient(
+    180deg,
+    rgba(47, 111, 174, 0.56),
+    rgba(63, 143, 105, 0.48)
+  );
   border-radius: 999px;
   border: 2px solid transparent;
   background-clip: padding-box;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: linear-gradient(180deg, rgba(47, 111, 174, 0.76), rgba(63, 143, 105, 0.68));
+  background: linear-gradient(
+    180deg,
+    rgba(47, 111, 174, 0.76),
+    rgba(63, 143, 105, 0.68)
+  );
   border: 2px solid transparent;
   background-clip: padding-box;
 }
@@ -777,25 +785,27 @@ button:disabled {
 }
 
 .message.user .message-bubble {
-  background: var(--blue-600);
-  color: white;
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: #d9e1df;
+  color: var(--ink-900);
+  border: 1px solid rgba(47, 111, 174, 0.12);
   border-bottom-right-radius: 0.3rem;
   box-shadow:
-    0 16px 34px rgba(35, 87, 137, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    0 14px 30px rgba(13, 27, 42, 0.08),
+    inset 0 1px 0 rgba(255, 255, 255, 0.55);
 }
 
 .message.user .message-bubble strong {
-  color: white;
+  color: var(--ink-900);
 }
 
 .message.assistant .message-bubble {
-  color: var(--text-main);
-  background: rgba(255, 252, 246, 0.96);
-  border: 1px solid rgba(47, 111, 174, 0.12);
+  color: var(--ink-900);
+  background: #eef2f0;
+  border: 1px solid rgba(13, 27, 42, 0.08);
   border-bottom-left-radius: 0.3rem;
-  box-shadow: 0 14px 32px rgba(13, 27, 42, 0.08);
+  box-shadow:
+    0 14px 30px rgba(13, 27, 42, 0.07),
+    inset 0 1px 0 rgba(255, 255, 255, 0.62);
 }
 
 .message-role {
@@ -1111,7 +1121,7 @@ button:disabled {
 
 .loading-bubble {
   min-width: 280px;
-  background: rgba(255, 252, 246, 0.96) !important;
+  background: #eef2f0;
 }
 
 .typing {
@@ -1382,9 +1392,9 @@ button:disabled {
 }
 
 .message-action-button {
-  background: rgba(47, 111, 174, 0.07);
-  color: inherit;
-  border: 1px solid rgba(47, 111, 174, 0.13);
+  background: rgba(13, 27, 42, 0.055);
+  color: var(--ink-800);
+  border: 1px solid rgba(13, 27, 42, 0.1);
   box-shadow: none;
   padding: 0.3rem 0.52rem;
   border-radius: 999px;
@@ -1393,19 +1403,17 @@ button:disabled {
 }
 
 .message.user .message-action-button {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.24);
+  background: rgba(13, 27, 42, 0.06);
+  color: var(--ink-800);
+  border-color: rgba(13, 27, 42, 0.1);
 }
 
-.message-action-button:hover {
-  background: rgba(47, 111, 174, 0.12);
+.message-action-button:hover,
+.message.user .message-action-button:hover {
+  background: rgba(13, 27, 42, 0.1);
   box-shadow: none;
   transform: none;
   filter: none;
-}
-
-.message.user .message-action-button:hover {
-  background: rgba(255, 255, 255, 0.22);
 }
 
 .inline-edit-box {
