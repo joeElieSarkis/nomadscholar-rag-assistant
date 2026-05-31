@@ -116,6 +116,10 @@ function createNewChat() {
   };
 }
 
+function isEmptyChat(chat) {
+  return !(chat?.messages || []).some((message) => message.role === "user");
+}
+
 function loadSavedChats() {
   const savedChats = localStorage.getItem("nomadscholar_chats");
   const activeChatId = localStorage.getItem("nomadscholar_active_chat_id");
@@ -208,10 +212,28 @@ function App() {
     setEditingText("");
   }
 
+  function clearChecklistState() {
+  setChecklistText("");
+  setChecklistResult(null);
+}
+
   function switchChat(chatId) {
-    setActiveChatId(chatId);
+    if (chatId === activeChatId) return;
+
+    const currentChat = chats.find((chat) => chat.id === activeChatId);
+    const currentChatIsEmpty = isEmptyChat(currentChat);
+
     clearDraftState();
     clearEditingState();
+    clearChecklistState();
+
+    setActiveChatId(chatId);
+
+    if (currentChatIsEmpty) {
+      setChats((currentChats) =>
+        currentChats.filter((chat) => chat.id !== activeChatId)
+      );
+    }
   }
 
   function updateChatMessages(chatId, nextMessages, moveToTop = false) {
@@ -237,20 +259,19 @@ function App() {
   }
 
   function startNewChat() {
-    const currentChat = chats.find((chat) => chat.id === activeChatId);
-    const currentMessages = currentChat?.messages || [];
-
-    const hasUserMessages = currentMessages.some(
-      (message) => message.role === "user"
-    );
-
     clearDraftState();
     clearEditingState();
-    setChecklistResult(null);
+    clearChecklistState();
 
-    if (!hasUserMessages) return;
+    const existingEmptyChat = chats.find((chat) => isEmptyChat(chat));
+
+    if (existingEmptyChat) {
+      setActiveChatId(existingEmptyChat.id);
+      return;
+    }
 
     const newChat = createNewChat();
+
     setChats((currentChats) => [newChat, ...currentChats]);
     setActiveChatId(newChat.id);
   }
@@ -273,6 +294,7 @@ function App() {
         setActiveChatId(remainingChats[0].id);
         clearDraftState();
         clearEditingState();
+        clearChecklistState();
       }
 
       return remainingChats;
