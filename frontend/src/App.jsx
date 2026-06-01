@@ -153,12 +153,7 @@ function loadSavedChats() {
 
   if (!savedChats) {
     const initialChat = createNewChat();
-
-    sessionStorage.setItem(
-      "nomadscholar_session_active_chat_id",
-      initialChat.id
-    );
-
+    sessionStorage.setItem("nomadscholar_session_active_chat_id", initialChat.id);
     return { chats: [initialChat], activeChatId: initialChat.id };
   }
 
@@ -167,12 +162,7 @@ function loadSavedChats() {
 
     if (!Array.isArray(parsedChats) || parsedChats.length === 0) {
       const initialChat = createNewChat();
-
-      sessionStorage.setItem(
-        "nomadscholar_session_active_chat_id",
-        initialChat.id
-      );
-
+      sessionStorage.setItem("nomadscholar_session_active_chat_id", initialChat.id);
       return { chats: [initialChat], activeChatId: initialChat.id };
     }
 
@@ -216,7 +206,6 @@ function loadSavedChats() {
     }
 
     const freshChat = createNewChat();
-
     sessionStorage.setItem("nomadscholar_session_active_chat_id", freshChat.id);
 
     return {
@@ -225,12 +214,7 @@ function loadSavedChats() {
     };
   } catch {
     const initialChat = createNewChat();
-
-    sessionStorage.setItem(
-      "nomadscholar_session_active_chat_id",
-      initialChat.id
-    );
-
+    sessionStorage.setItem("nomadscholar_session_active_chat_id", initialChat.id);
     return { chats: [initialChat], activeChatId: initialChat.id };
   }
 }
@@ -914,28 +898,15 @@ function App() {
         </div>
       </aside>
 
-      <main className="main">
-        <section className="hero minimal-hero">
-          <div className="hero-copy">
-            <h2>Scholarship and admissions guidance.</h2>
-            <p>Ask, upload, extract, and plan.</p>
-          </div>
-
-          <div className="hero-visual" aria-hidden="true">
-            <div className="hero-orbit">
-              <div className="orbit-core" />
-              <div className="float-orb orb-one" />
-              <div className="float-orb orb-two" />
-              <div className="float-orb orb-three" />
-            </div>
-          </div>
-        </section>
-
-        <section className="content-grid">
-          <div className="chat-card chat-card-large">
-            <div className="section-header section-header-minimal">
-              <h3>Assistant</h3>
-              <span>Live</span>
+      <main className="main chatbot-main">
+        <section className="content-grid chatbot-grid">
+          <div className="chat-card chat-card-large chatbot-card">
+            <div className="chat-topbar">
+              <div>
+                <h3>NomadScholar AI</h3>
+                <p>Scholarships, admissions, documents, screenshots, and PDFs.</p>
+              </div>
+              <span className="live-pill">Live</span>
             </div>
 
             <div className="messages">
