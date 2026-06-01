@@ -38,7 +38,7 @@ class ChatTurn(BaseModel):
 
 class ChatRequest(BaseModel):
     question: str
-    history: Optional[List[ChatTurn]] = []
+    history: Optional[List[ChatTurn]] = None
 
 
 class ChatResponse(BaseModel):
@@ -48,6 +48,22 @@ class ChatResponse(BaseModel):
 
 class ChecklistRequest(BaseModel):
     text: str
+
+
+def format_backend_error(error):
+    error_message = str(error)
+
+    if "RESOURCE_EXHAUSTED" in error_message or "429" in error_message:
+        return (
+            "The Gemini API quota was reached. Please wait about a minute and try again. "
+            "If this keeps happening, use a different API key, enable billing, or switch "
+            "to a lower-traffic model."
+        )
+
+    if "GOOGLE_API_KEY" in error_message:
+        return error_message
+
+    return f"Backend error: {error_message}"
 
 
 @app.get("/")
@@ -66,11 +82,17 @@ def chat(request: ChatRequest):
 
     history = [(turn.user, turn.assistant) for turn in request.history or []]
 
-    result = answer_question(
-        question=request.question,
-        history=history,
-        image_text="",
-    )
+    try:
+        result = answer_question(
+            question=request.question,
+            history=history,
+            image_text="",
+        )
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=format_backend_error(error),
+        ) from error
 
     return ChatResponse(
         answer=result["answer"],
@@ -138,7 +160,10 @@ async def chat_with_image(
         )
 
     except Exception as error:
-        raise HTTPException(status_code=500, detail=str(error)) from error
+        raise HTTPException(
+            status_code=500,
+            detail=format_backend_error(error),
+        ) from error
 
     finally:
         if temp_path and os.path.exists(temp_path):
@@ -224,7 +249,10 @@ async def chat_with_file(
         )
 
     except Exception as error:
-        raise HTTPException(status_code=500, detail=str(error)) from error
+        raise HTTPException(
+            status_code=500,
+            detail=format_backend_error(error),
+        ) from error
 
     finally:
         if temp_path and os.path.exists(temp_path):
@@ -236,6 +264,12 @@ def checklist(request: ChecklistRequest):
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty.")
 
-    result = extract_application_checklist(request.text)
+    try:
+        result = extract_application_checklist(request.text)
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=format_backend_error(error),
+        ) from error
 
     return result.model_dump()

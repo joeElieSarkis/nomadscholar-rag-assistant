@@ -1,4 +1,5 @@
 import os
+import re
 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
@@ -73,7 +74,13 @@ def format_chat_history(history):
 
 
 def normalize_question(question):
-    return " ".join((question or "").lower().strip().split())
+    cleaned_question = re.sub(
+        r"[^\w\s\u0600-\u06FF%]",
+        " ",
+        (question or "").lower().strip(),
+    )
+
+    return " ".join(cleaned_question.split())
 
 
 def is_greeting(question):
@@ -144,6 +151,86 @@ def is_safety_or_guarantee_question(question):
     return any(keyword in normalized_question for keyword in guarantee_keywords)
 
 
+DOMAIN_KEYWORDS = {
+    "admission",
+    "admissions",
+    "application",
+    "applications",
+    "apply",
+    "applying",
+    "checklist",
+    "college",
+    "cv",
+    "deadline",
+    "deadlines",
+    "document",
+    "documents",
+    "eligibility",
+    "financial aid",
+    "funding",
+    "letter of recommendation",
+    "master",
+    "masters",
+    "motivation letter",
+    "recommendation",
+    "requirements",
+    "scholarship",
+    "scholarships",
+    "study abroad",
+    "transcript",
+    "university",
+    "visa",
+    "قبول",
+    "تقديم",
+    "جامعة",
+    "جامعات",
+    "ماجستير",
+    "مستندات",
+    "منح",
+    "منحة",
+    "وثائق",
+}
+
+
+PROVIDER_KEYWORDS = {
+    "campus france",
+    "common app",
+    "daad",
+    "educationusa",
+    "erasmus",
+}
+
+
+STUDY_LOCATION_PATTERNS = {
+    "master in france",
+    "masters in france",
+    "master's in france",
+    "study in france",
+    "study in germany",
+    "studying in france",
+    "studying in germany",
+}
+
+
+def is_in_scope_question(question, history=None, image_text=""):
+    """
+    Decide whether a text-only question should use the admissions RAG knowledge base.
+
+    Uploaded files and follow-up turns are allowed through because the relevant
+    context may be in the file or previous conversation.
+    """
+    if image_text or history:
+        return True
+
+    normalized_question = normalize_question(question)
+
+    return (
+        any(keyword in normalized_question for keyword in DOMAIN_KEYWORDS)
+        or any(keyword in normalized_question for keyword in PROVIDER_KEYWORDS)
+        or any(pattern in normalized_question for pattern in STUDY_LOCATION_PATTERNS)
+    )
+
+
 def answer_question(question, history=None, image_text=""):
     history = history or []
     question = question or ""
@@ -184,6 +271,18 @@ def answer_question(question, history=None, image_text=""):
                 "- identify missing information\n"
                 "- explain deadlines and eligibility notes\n"
                 "- organize your next steps"
+            ),
+            "sources": [],
+            "retrieved_context": "",
+        }
+
+    if not is_in_scope_question(question, history=history, image_text=image_text):
+        return {
+            "answer": (
+                "I’m focused on scholarships, admissions, study-abroad applications, "
+                "required documents, deadlines, uploaded application files, and checklists. "
+                "I do not have enough relevant information in my knowledge base to answer "
+                "that question reliably."
             ),
             "sources": [],
             "retrieved_context": "",
