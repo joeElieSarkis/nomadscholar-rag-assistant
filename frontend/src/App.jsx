@@ -631,6 +631,57 @@ function App() {
     clearChecklistState();
   }
 
+  function createChecklistFileName(result) {
+    const textParts = [
+      result?.deadline,
+      ...(result?.required_documents || []),
+      ...(result?.eligibility_notes || []),
+      ...(result?.missing_information || []),
+      ...(result?.next_steps || []),
+    ];
+
+    const combinedText = textParts.join(" ").toLowerCase();
+
+    let baseName = "nomadscholar-checklist";
+
+    if (combinedText.includes("daad")) {
+      baseName = "daad-scholarship-checklist";
+    } else if (
+      combinedText.includes("campus france") ||
+      combinedText.includes("etudes en france") ||
+      combinedText.includes("études en france") ||
+      combinedText.includes("france")
+    ) {
+      baseName = "campus-france-application-checklist";
+    } else if (combinedText.includes("erasmus")) {
+      baseName = "erasmus-mundus-checklist";
+    } else if (combinedText.includes("common app")) {
+      baseName = "common-app-checklist";
+    } else if (combinedText.includes("educationusa")) {
+      baseName = "educationusa-application-checklist";
+    } else if (
+      combinedText.includes("master") ||
+      combinedText.includes("master's") ||
+      combinedText.includes("masters")
+    ) {
+      baseName = "masters-application-checklist";
+    } else if (
+      combinedText.includes("scholarship") ||
+      combinedText.includes("funding")
+    ) {
+      baseName = "scholarship-checklist";
+    } else if (
+      combinedText.includes("admission") ||
+      combinedText.includes("application")
+    ) {
+      baseName = "application-checklist";
+    }
+
+    const date = new Date().toISOString().slice(0, 10);
+
+    return `${baseName}-${date}`;
+  }
+
   function downloadChecklistPdf() {
     if (!checklistResult || checklistResult.error) return;
 
@@ -758,7 +809,7 @@ function App() {
       );
     }
 
-    doc.save("nomadscholar-checklist.pdf");
+    doc.save(`${createChecklistFileName(checklistResult)}.pdf`);
   }
 
   function handleExampleClick(exampleQuestion) {
