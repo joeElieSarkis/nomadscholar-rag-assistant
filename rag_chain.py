@@ -16,7 +16,7 @@ load_dotenv()
 VECTORSTORE_DIR = "vectorstore"
 COLLECTION_NAME = "nomadscholar_kb"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-GEMINI_MODEL = "gemini-2.5-flash"
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 
 def get_llm():
@@ -50,8 +50,10 @@ def format_documents(documents):
     for index, document in enumerate(documents, start=1):
         title = document.metadata.get("title", "Unknown source")
         source_file = document.metadata.get("source_file", "Unknown file")
+
         formatted_documents.append(
-            f"[Retrieved chunk {index} from {title} ({source_file})]\n{document.page_content}"
+            f"[Retrieved chunk {index} from {title} ({source_file})]\n"
+            f"{document.page_content}"
         )
 
     return "\n\n".join(formatted_documents)
@@ -70,8 +72,12 @@ def format_chat_history(history):
     return "\n".join(formatted_history)
 
 
+def normalize_question(question):
+    return " ".join((question or "").lower().strip().split())
+
+
 def is_greeting(question):
-    normalized_question = question.lower().strip()
+    normalized_question = normalize_question(question)
 
     greetings = {
         "hi",
@@ -90,8 +96,36 @@ def is_greeting(question):
     return normalized_question in greetings
 
 
+def is_small_talk(question):
+    normalized_question = normalize_question(question)
+
+    small_talk_messages = {
+        "how are you",
+        "how are you?",
+        "how r u",
+        "how are u",
+        "how is it going",
+        "how's it going",
+        "whats up",
+        "what's up",
+        "thank you",
+        "thanks",
+        "thank u",
+        "okay thank you",
+        "ok thank you",
+        "تمام",
+        "شكرا",
+        "شكراً",
+        "كيفك",
+        "كيف حالك",
+        "عامل ايه",
+    }
+
+    return normalized_question in small_talk_messages
+
+
 def is_safety_or_guarantee_question(question):
-    normalized_question = question.lower()
+    normalized_question = normalize_question(question)
 
     guarantee_keywords = [
         "guarantee",
@@ -112,14 +146,27 @@ def is_safety_or_guarantee_question(question):
 
 def answer_question(question, history=None, image_text=""):
     history = history or []
+    question = question or ""
 
     if is_greeting(question):
         return {
             "answer": (
-                "Hello! I’m NomadScholar AI. I can help you understand scholarship and university "
-                "application requirements, prepare document checklists, compare official guidance, "
-                "and explain screenshots or PDFs of admissions or scholarship pages.\n\n"
+                "Hello! I’m NomadScholar AI. I can help you understand scholarship "
+                "and university application requirements, prepare document checklists, "
+                "compare official guidance, and explain screenshots or PDFs of admissions "
+                "or scholarship pages.\n\n"
                 "What are you applying for?"
+            ),
+            "sources": [],
+            "retrieved_context": "",
+        }
+
+    if is_small_talk(question):
+        return {
+            "answer": (
+                "I’m ready to help with scholarships, admissions, required documents, "
+                "deadlines, screenshots, PDFs, or application checklists. What are you "
+                "working on?"
             ),
             "sources": [],
             "retrieved_context": "",
@@ -128,8 +175,9 @@ def answer_question(question, history=None, image_text=""):
     if is_safety_or_guarantee_question(question):
         return {
             "answer": (
-                "I can’t guarantee admission, scholarships, visas, or funding. Final decisions are made "
-                "by the official university, scholarship provider, or embassy.\n\n"
+                "I can’t guarantee admission, scholarships, visas, or funding. Final "
+                "decisions are made by the official university, scholarship provider, "
+                "or embassy.\n\n"
                 "What I can do is help you:\n"
                 "- understand official requirements\n"
                 "- prepare a document checklist\n"
@@ -147,7 +195,7 @@ def answer_question(question, history=None, image_text=""):
     retrieval_query = question
 
     if image_text:
-        retrieval_query = f"{question}\n\nExtracted image text:\n{image_text}"
+        retrieval_query = f"{question}\n\nExtracted uploaded file text:\n{image_text}"
 
     retrieved_documents = retriever.invoke(retrieval_query)
 
@@ -168,7 +216,7 @@ def answer_question(question, history=None, image_text=""):
         {
             "chat_history": chat_history,
             "context": context,
-            "image_text": image_text or "No image text provided.",
+            "image_text": image_text or "No uploaded file text provided.",
             "question": question,
         }
     )
@@ -176,7 +224,10 @@ def answer_question(question, history=None, image_text=""):
     sources = []
 
     for document in retrieved_documents:
-        title = document.metadata.get("title") or document.metadata.get("source_file", "Unknown source")
+        title = document.metadata.get("title") or document.metadata.get(
+            "source_file",
+            "Unknown source",
+        )
 
         if title not in sources:
             sources.append(title)
@@ -216,6 +267,7 @@ Text:
 if __name__ == "__main__":
     test_questions = [
         "hello",
+        "how are you",
         "Can you guarantee I will get accepted?",
         "What documents do I need for a DAAD scholarship?",
         "I want to apply for a master's in AI in France. What options should I explore?",
