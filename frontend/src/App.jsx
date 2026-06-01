@@ -3,9 +3,61 @@ import ReactMarkdown from "react-markdown";
 import jsPDF from "jspdf";
 import "./App.css";
 
-const API_BASE_URL = "http://127.0.0.1:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
 
 const DEFAULT_MESSAGES = [];
+
+function createMessageId() {
+  return crypto.randomUUID();
+}
+
+function ensureMessageIds(messages = []) {
+  return messages.map((message) => ({
+    ...message,
+    id: message.id || createMessageId(),
+    replyTo: message.replyTo || null,
+    imagePreview: message.imagePreview?.startsWith("blob:")
+      ? null
+      : message.imagePreview || null,
+  }));
+}
+
+function getReplyLabel(replyTo) {
+  if (replyTo?.isSelection) return "Replying to selected text";
+  return replyTo?.role === "assistant"
+    ? "Replying to NomadScholar AI"
+    : "Replying to you";
+}
+
+function getReplyPreview(replyTo, maxLength = 140) {
+  const compactText = (replyTo?.content || "").replace(/\s+/g, " ").trim();
+
+  if (!compactText) return "Original message";
+
+  return compactText.length > maxLength
+    ? `${compactText.slice(0, maxLength)}...`
+    : compactText;
+}
+
+function buildReplyPrompt(replyTo, userQuestion) {
+  if (!replyTo) return userQuestion;
+
+  const replyRole = replyTo.isSelection
+    ? "selected excerpt"
+    : replyTo.role === "assistant"
+      ? "NomadScholar AI answer"
+      : "user message";
+  const replyText = (replyTo.content || "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, 1800);
+
+  return (
+    `The user is replying to this earlier ${replyRole}:\n` +
+    `"""${replyText}"""\n\n` +
+    `User's new question:\n${userQuestion}`
+  );
+}
 
 function GraduationIcon() {
   return (
@@ -137,7 +189,7 @@ function createNewChat() {
     title: "New chat",
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    messages: DEFAULT_MESSAGES,
+    messages: [],
   };
 }
 
@@ -169,13 +221,15 @@ function loadSavedChats() {
     const cleanedChats = parsedChats.map((chat) => ({
       ...chat,
       messages: Array.isArray(chat.messages)
-        ? chat.messages.filter(
-            (message) =>
-              !(
-                message.role === "assistant" &&
-                message.content ===
-                  "Hi, I’m NomadScholar AI. Ask a question or upload a screenshot or PDF."
-              )
+        ? ensureMessageIds(
+            chat.messages.filter(
+              (message) =>
+                !(
+                  message.role === "assistant" &&
+                  message.content ===
+                    "Hi, I’m NomadScholar AI. Ask a question or upload a screenshot or PDF."
+                )
+            )
           )
         : [],
     }));
@@ -228,6 +282,10 @@ function App() {
   const abortControllerRef = useRef(null);
   const imageInputRef = useRef(null);
   const pdfInputRef = useRef(null);
+  const messagesRef = useRef(null);
+  const messagesEndRef = useRef(null);
+  const messageRefs = useRef({});
+  const composerTextareaRef = useRef(null);
 
   const [chats, setChats] = useState(savedState.chats);
   const [activeChatId, setActiveChatId] = useState(savedState.activeChatId);
@@ -244,6 +302,9 @@ function App() {
   const [copiedMessageKey, setCopiedMessageKey] = useState(null);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
   const [theme, setTheme] = useState(getSavedTheme);
+  const [replyTarget, setReplyTarget] = useState(null);
+  const [highlightedMessageId, setHighlightedMessageId] = useState(null);
+  const [selectionReply, setSelectionReply] = useState(null);
 
   const activeChat = chats.find((chat) => chat.id === activeChatId) || chats[0];
   const messages = activeChat?.messages || DEFAULT_MESSAGES;
@@ -266,10 +327,16 @@ function App() {
     localStorage.setItem("nomadscholar_theme", theme);
   }, [theme]);
 
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [messages.length, isActiveChatLoading, activeChatId]);
+
   function clearDraftState() {
     setQuestion("");
     setImage(null);
     setAttachMenuOpen(false);
+    setReplyTarget(null);
+    setSelectionReply(null);
   }
 
   function clearEditingState() {
@@ -468,6 +535,7 @@ function App() {
           );
 
       const assistantMessage = {
+        id: createMessageId(),
         role: "assistant",
         content: data.answer,
         sources: data.sources || [],
@@ -484,6 +552,7 @@ function App() {
         [
           ...messagesWithUserQuestion,
           {
+            id: createMessageId(),
             role: "assistant",
             content: getFriendlyErrorMessage(error),
             sources: [],
@@ -511,10 +580,17 @@ function App() {
 
     const chatIdForRequest = activeChatId;
     const fileWasAttached = Boolean(image);
+    const visibleQuestion = finalQuestion || "Please explain the uploaded file.";
+    const replyContext = replyTarget;
+    const apiQuestion = replyContext
+      ? buildReplyPrompt(replyContext, visibleQuestion)
+      : finalQuestion;
 
     const userMessage = {
+      id: createMessageId(),
       role: "user",
-      content: finalQuestion || "Please explain the uploaded file.",
+      content: visibleQuestion,
+      replyTo: replyContext,
       sources: [],
       imagePreview:
         image && image.type.startsWith("image/")
@@ -534,7 +610,7 @@ function App() {
     await requestAssistantAnswer({
       chatIdForRequest,
       messagesWithUserQuestion,
-      finalQuestion,
+      finalQuestion: apiQuestion,
       fileWasAttached,
     });
   }
@@ -567,7 +643,7 @@ function App() {
     await requestAssistantAnswer({
       chatIdForRequest,
       messagesWithUserQuestion: messagesWithEditedQuestion,
-      finalQuestion: trimmedContent,
+      finalQuestion: buildReplyPrompt(originalMessage.replyTo, trimmedContent),
       fileWasAttached: false,
     });
   }
@@ -592,6 +668,102 @@ function App() {
       .catch(() => {
         setCopiedMessageKey(null);
       });
+  }
+
+  function updateSelectionReply() {
+    const selection = window.getSelection();
+    const messagesElement = messagesRef.current;
+
+    if (
+      !selection ||
+      selection.rangeCount === 0 ||
+      selection.isCollapsed ||
+      !messagesElement
+    ) {
+      setSelectionReply(null);
+      return;
+    }
+
+    const selectedText = selection.toString().trim();
+
+    if (!selectedText) {
+      setSelectionReply(null);
+      return;
+    }
+
+    const range = selection.getRangeAt(0);
+    const container =
+      range.commonAncestorContainer.nodeType === Node.ELEMENT_NODE
+        ? range.commonAncestorContainer
+        : range.commonAncestorContainer.parentElement;
+    const messageElement = container?.closest?.(".message[data-message-id]");
+
+    if (!messageElement || !messagesElement.contains(messageElement)) {
+      setSelectionReply(null);
+      return;
+    }
+
+    const selectionRects = Array.from(range.getClientRects()).filter(
+      (rect) => rect.width > 2 && rect.height > 2
+    );
+
+    if (selectionRects.length === 0) {
+      setSelectionReply(null);
+      return;
+    }
+
+    const rect = selectionRects[selectionRects.length - 1];
+    const messagesRect = messagesElement.getBoundingClientRect();
+    const buttonWidth = 78;
+    const buttonHeight = 34;
+    const scrollLeft = messagesElement.scrollLeft;
+    const scrollTop = messagesElement.scrollTop;
+    const minLeft = scrollLeft + 10;
+    const maxLeft = scrollLeft + messagesElement.clientWidth - buttonWidth - 10;
+    const preferredLeft =
+      rect.left - messagesRect.left + scrollLeft + rect.width / 2 - buttonWidth / 2;
+    const preferredTop =
+      rect.top - messagesRect.top + scrollTop - buttonHeight - 8;
+    const messageId = messageElement.dataset.messageId;
+    const role = messageElement.dataset.messageRole;
+
+    setSelectionReply({
+      content: selectedText,
+      id: messageId,
+      left: Math.min(maxLeft, Math.max(minLeft, preferredLeft)),
+      role,
+      top: Math.max(scrollTop + 10, preferredTop),
+    });
+  }
+
+  function beginReplyToSelection() {
+    if (loadingChatId || !selectionReply) return;
+
+    setReplyTarget({
+      id: selectionReply.id,
+      role: selectionReply.role,
+      content: selectionReply.content,
+      isSelection: true,
+    });
+
+    setSelectionReply(null);
+    window.getSelection()?.removeAllRanges();
+    window.setTimeout(() => composerTextareaRef.current?.focus(), 0);
+  }
+
+  function jumpToMessage(messageId) {
+    const target = messageRefs.current[messageId];
+
+    if (!target) return;
+
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+    setHighlightedMessageId(messageId);
+
+    window.setTimeout(() => {
+      setHighlightedMessageId((currentId) =>
+        currentId === messageId ? null : currentId
+      );
+    }, 1400);
   }
 
   async function handleChecklistExtraction() {
@@ -814,6 +986,8 @@ function App() {
 
   function handleExampleClick(exampleQuestion) {
     setQuestion(exampleQuestion);
+    setImage(null);
+    setReplyTarget(null);
   }
 
   function handleAttachedFile(file) {
@@ -960,7 +1134,13 @@ function App() {
               <span className="live-pill">Live</span>
             </div>
 
-            <div className="messages">
+            <div
+              className="messages"
+              ref={messagesRef}
+              onKeyUp={() => window.setTimeout(updateSelectionReply, 0)}
+              onMouseUp={() => window.setTimeout(updateSelectionReply, 0)}
+              onScroll={() => setSelectionReply(null)}
+            >
               {!hasStartedChat && !isActiveChatLoading && (
                 <div className="empty-chat-state">
                   <div className="welcome-stage">
@@ -983,6 +1163,7 @@ function App() {
               {messages.map((message, index) => {
                 const messageIsArabic = isArabicText(message.content);
                 const messageKey = `${activeChatId}-${message.role}-${index}`;
+                const messageId = message.id || messageKey;
                 const isEditingThisMessage = editingMessageIndex === index;
                 const canEditUserMessage =
                   message.role === "user" &&
@@ -992,7 +1173,22 @@ function App() {
                   message.role === "user" || message.role === "assistant";
 
                 return (
-                  <div key={messageKey} className={`message ${message.role}`}>
+                  <div
+                    key={messageId}
+                    data-message-id={messageId}
+                    data-message-role={message.role}
+                    id={`message-${messageId}`}
+                    ref={(element) => {
+                      if (element) {
+                        messageRefs.current[messageId] = element;
+                      } else {
+                        delete messageRefs.current[messageId];
+                      }
+                    }}
+                    className={`message ${message.role} ${
+                      highlightedMessageId === messageId ? "message-highlighted" : ""
+                    }`}
+                  >
                     <div
                       className={`message-bubble ${
                         messageIsArabic ? "rtl-bubble" : ""
@@ -1024,6 +1220,23 @@ function App() {
                           </span>
                           <span>{message.fileName}</span>
                         </div>
+                      )}
+
+                      {message.replyTo && (
+                        <button
+                          type="button"
+                          className={`reply-preview ${
+                            isArabicText(message.replyTo.content)
+                              ? "reply-preview-rtl"
+                              : ""
+                          }`}
+                          dir={isArabicText(message.replyTo.content) ? "rtl" : "ltr"}
+                          onClick={() => jumpToMessage(message.replyTo.id)}
+                          title="Jump to original message"
+                        >
+                          <span>{getReplyLabel(message.replyTo)}</span>
+                          <p>{getReplyPreview(message.replyTo)}</p>
+                        </button>
                       )}
 
                       {isEditingThisMessage ? (
@@ -1113,6 +1326,25 @@ function App() {
                   </div>
                 </div>
               )}
+
+              {(hasStartedChat || isActiveChatLoading) && (
+                <div className="messages-end" ref={messagesEndRef} />
+              )}
+
+              {selectionReply && (
+                <button
+                  type="button"
+                  className="selection-reply-button"
+                  style={{
+                    left: `${selectionReply.left}px`,
+                    top: `${selectionReply.top}px`,
+                  }}
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={beginReplyToSelection}
+                >
+                  Reply
+                </button>
+              )}
             </div>
 
             <form className="chat-form" onSubmit={handleSubmit}>
@@ -1121,6 +1353,31 @@ function App() {
                   <span>{image.name}</span>
                   <button type="button" onClick={() => setImage(null)}>
                     Remove
+                  </button>
+                </div>
+              )}
+
+              {replyTarget && (
+                <div className="composer-reply-preview">
+                  <button
+                    type="button"
+                    className={`composer-reply-jump ${
+                      isArabicText(replyTarget.content) ? "reply-preview-rtl" : ""
+                    }`}
+                    dir={isArabicText(replyTarget.content) ? "rtl" : "ltr"}
+                    onClick={() => jumpToMessage(replyTarget.id)}
+                  >
+                    <span>{getReplyLabel(replyTarget)}</span>
+                    <p>{getReplyPreview(replyTarget)}</p>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="clear-reply-button"
+                    onClick={() => setReplyTarget(null)}
+                    title="Cancel reply"
+                  >
+                    ×
                   </button>
                 </div>
               )}
@@ -1184,6 +1441,7 @@ function App() {
                 </div>
 
                 <textarea
+                  ref={composerTextareaRef}
                   value={question}
                   onChange={(event) => setQuestion(event.target.value)}
                   placeholder="Ask in English or Arabic."
