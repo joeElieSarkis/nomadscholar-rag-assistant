@@ -1,81 +1,93 @@
 # RAG Improvement Cases
 
-This file documents five cases where retrieval-augmented generation improved the quality, grounding, and safety of NomadScholar AI's responses.
+This file documents five cases where retrieval-augmented generation improved NomadScholar AI's answers compared with a generic LLM response without project retrieval.
 
-## Case 1: DAAD scholarship documents
+## Summary Table
 
-**Question:**  
+| Case | Question | Retrieved sources | Main improvement |
+| --- | --- | --- | --- |
+| 1 | What documents do I need for a DAAD scholarship? | DAAD Applicant Information; DAAD Scholarships and Funding | Avoids giving one universal DAAD list and explains program-specific requirements. |
+| 2 | I want to apply for a master's in AI in France. What options should I explore? | Campus France Programs and Scholarships | Avoids inventing university names and points the user to official search tools and keywords. |
+| 3 | What should I prepare for Erasmus Mundus? | Erasmus Mundus Joint Masters | Grounds the answer in Erasmus Mundus consortium/program-specific application rules. |
+| 4 | What should a Lebanese student do if they want advising for studying in the United States? | EducationUSA Lebanon Advising | Uses the Lebanon-specific advising context instead of broad U.S. study advice. |
+| 5 | شو المستندات المطلوبة للتقديم على منحة؟ | DAAD Applicant Information; DAAD Scholarships and Funding; Erasmus Mundus Joint Masters | Combines Arabic response quality with retrieved scholarship document guidance. |
+
+## Case 1: DAAD Scholarship Documents
+
+**Question:**
 What documents do I need for a DAAD scholarship?
 
-**Without retrieval:**  
-A general LLM may provide a generic scholarship document list without explaining that DAAD requirements vary by program.
+**Without retrieval:**
+A generic LLM may provide a broad scholarship document list and make it sound like the same list applies to every DAAD scholarship.
 
-**With retrieval:**  
-NomadScholar AI retrieves DAAD-related documents and explains that each DAAD scholarship program has its own eligibility rules, deadlines, language requirements, and document list. It provides common documents such as CV, transcripts, motivation letter, recommendation letters, language proof, admission documents, and research proposal or study plan.
+**With retrieval:**
+NomadScholar AI retrieves DAAD-specific documents. The response explains that each DAAD scholarship program has its own eligibility rules, deadlines, language requirements, funding period, and required documents. It still gives useful common examples such as CV, academic certificates, transcripts, motivation letter, recommendation letters, language proof, admission documents, research proposal, study plan, portfolio, or work samples.
 
-**Improvement:**  
-The answer is more specific, grounded, and cautious. It avoids presenting a single universal DAAD document list.
-
----
+**Improvement:**
+The answer is more accurate and safer because it is specific to DAAD while still warning the user to check the selected DAAD program's official announcement.
 
 ## Case 2: Master's in AI in France
 
-**Question:**  
+**Question:**
 I want to apply for a master's in AI in France. What options should I explore?
 
-**Without retrieval:**  
-A general LLM might invent university names, recommend programs without source grounding, or give broad advice.
+**Without retrieval:**
+A generic LLM might hallucinate specific universities or programs, or give broad study-abroad advice without source grounding.
 
-**With retrieval:**  
-NomadScholar AI retrieves the Campus France guidance document and recommends using official Campus France program search tools, English-taught program catalogs, and relevant search keywords such as artificial intelligence, data science, computer science, machine learning, robotics, and applied mathematics.
+**With retrieval:**
+NomadScholar AI retrieves the Campus France guidance document. The answer recommends using official Campus France program search tools and English-taught program catalogs. It suggests search keywords such as artificial intelligence, data science, computer science, machine learning, intelligent systems, robotics, software engineering, cybersecurity, and applied mathematics.
 
-**Improvement:**  
-The response avoids hallucinating specific programs and directs the student toward official search tools and verification steps.
+**Improvement:**
+The response avoids inventing program names and gives the student a source-grounded search strategy.
 
----
+## Case 3: Erasmus Mundus Preparation
 
-## Case 3: Arabic scholarship guidance
+**Question:**
+What should I prepare for Erasmus Mundus?
 
-**Question:**  
+**Without retrieval:**
+A generic LLM may describe Erasmus broadly but miss that students apply directly to each selected Erasmus Mundus Joint Masters program and that requirements differ by program.
+
+**With retrieval:**
+NomadScholar AI retrieves Erasmus Mundus Joint Masters guidance. The answer explains that each program has its own admission requirements, deadlines, selection criteria, documents, and scholarship rules. It lists likely documents such as transcripts, degree certificates, CV, motivation letters, recommendation letters, language proof, passport information, and other program-specific documents.
+
+**Improvement:**
+The answer is more actionable because it connects preparation to the official program-level application process.
+
+## Case 4: EducationUSA Lebanon Advising
+
+**Question:**
+What should a Lebanese student do if they want advising for studying in the United States?
+
+**Without retrieval:**
+A generic LLM may provide broad U.S. admissions advice without mentioning Lebanon-specific advising support.
+
+**With retrieval:**
+NomadScholar AI retrieves EducationUSA Lebanon Advising. The answer explains that advising can help students understand the U.S. higher education system, search for universities, prepare application materials, understand standardized testing, explore financial aid, and organize the application timeline.
+
+**Improvement:**
+The answer becomes locally relevant for a Lebanese student and points them toward advising support instead of only giving generic U.S. application steps.
+
+## Case 5: Arabic Scholarship Document Guidance
+
+**Question:**
 شو المستندات المطلوبة للتقديم على منحة؟
 
-**Without retrieval:**  
-A general LLM may answer in Arabic but provide a broad, unsupported list.
+**Without retrieval:**
+A generic LLM may answer in Arabic but give a broad unsupported list, or fail to clearly explain that requirements differ by scholarship and university.
 
-**With retrieval:**  
-NomadScholar AI retrieves scholarship-related documents and answers in Arabic with a practical checklist of common requirements, while explaining that requirements vary by scholarship and university.
+**With retrieval:**
+NomadScholar AI retrieves scholarship-related documents and answers in Arabic. The answer lists common documents such as CV, academic certificates/transcripts, motivation letter, recommendation letters, proof of language proficiency, passport information, admission documents, and sometimes a research proposal, study plan, portfolio, or work samples.
 
-**Improvement:**  
-The answer combines bilingual support with grounded retrieval and safer wording.
+**Improvement:**
+The response demonstrates bilingual support while staying grounded in retrieved scholarship guidance and avoiding an overconfident universal checklist.
 
----
+## Overall RAG Value
 
-## Case 4: Image-based scholarship screenshot
+Across these cases, retrieval improved answers by:
 
-**Question:**  
-Can you explain this screenshot and make a checklist?
-
-**Without OCR and retrieval:**  
-The assistant would not be able to use the image content directly, or it might only give generic advice.
-
-**With OCR and retrieval:**  
-NomadScholar AI extracts text from the uploaded screenshot, identifies important details such as required documents, deadlines, funding coverage, and application steps, then combines the image text with retrieved scholarship context.
-
-**Improvement:**  
-The assistant supports multimodal input and turns unstructured image text into actionable guidance.
-
----
-
-## Case 5: Admission guarantee safety
-
-**Question:**  
-Can you guarantee I will get accepted?
-
-**Without safety handling:**  
-A general assistant might overpromise or give unsupported confidence.
-
-**With project-specific handling:**  
-NomadScholar AI clearly refuses to guarantee admission, scholarships, visas, or funding. It explains that final decisions are made by official universities, scholarship providers, or embassies, and redirects the user toward requirements, checklists, missing information, and next steps.
-
-**Improvement:**  
-The response is safer, more ethical, and aligned with the project scope.
+- grounding advice in curated official-source documents
+- reducing hallucinated program names, deadlines, and requirements
+- making answers more specific to DAAD, Campus France, Erasmus Mundus, EducationUSA, and Common App contexts
+- supporting Arabic answers with the same retrieved evidence used for English answers
+- displaying retrieved source titles separately in the UI for transparency

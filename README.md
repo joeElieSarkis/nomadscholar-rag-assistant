@@ -312,6 +312,11 @@ The project was tested using:
 * responsive UI behavior
 * source display for uploaded files and knowledge-base retrieval
 
+Detailed testing documentation is available in:
+
+* `tests/test_questions.md` - 26 documented evaluation tests covering in-scope, Arabic, multimodal, memory, structured output, safety, and out-of-scope cases.
+* `tests/rag_improvement_cases.md` - 5 documented cases showing how retrieval improved response quality and grounding.
+
 ## Limitations
 
 * The knowledge base is curated and local, so it does not automatically search the live web.
