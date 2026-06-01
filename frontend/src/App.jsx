@@ -286,6 +286,7 @@ function App() {
   const messagesEndRef = useRef(null);
   const messageRefs = useRef({});
   const composerTextareaRef = useRef(null);
+  const highlightTimeoutRef = useRef(null);
 
   const [chats, setChats] = useState(savedState.chats);
   const [activeChatId, setActiveChatId] = useState(savedState.activeChatId);
@@ -751,19 +752,280 @@ function App() {
     window.setTimeout(() => composerTextareaRef.current?.focus(), 0);
   }
 
-  function jumpToMessage(messageId) {
-    const target = messageRefs.current[messageId];
+  function clearReplySelectionMarks(root = document) {
+    root.querySelectorAll?.(".reply-selection-mark").forEach((mark) => {
+      const parent = mark.parentNode;
 
-    if (!target) return;
+      if (!parent) return;
 
-    target.scrollIntoView({ behavior: "smooth", block: "center" });
+      while (mark.firstChild) {
+        parent.insertBefore(mark.firstChild, mark);
+      }
+
+      parent.removeChild(mark);
+      parent.normalize();
+    });
+  }
+
+  function normalizeSearchCharacter(character) {
+    if (/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]/u.test(character)) {
+      return "";
+    }
+
+    if (/[\u200B-\u200F\u202A-\u202E\u2066-\u2069]/u.test(character)) {
+      return "";
+    }
+
+    if (/\s/u.test(character)) return " ";
+
+    return character
+      .replace(/[أإآٱ]/g, "ا")
+      .replace(/[ى]/g, "ي")
+      .replace(/[ؤ]/g, "و")
+      .replace(/[ئ]/g, "ي")
+      .toLocaleLowerCase();
+  }
+
+  function createSearchIndex(text, loose = false) {
+    const index = {
+      normalized: "",
+      map: [],
+    };
+    let previousWasSpace = false;
+
+    function appendSearchCharacter(character, start, end) {
+      if (!character) return;
+
+      const parts = [...character];
+
+      parts.forEach((part) => {
+        if (part === " ") {
+          if (!previousWasSpace && index.normalized.length > 0) {
+            index.normalized += " ";
+            index.map.push({ start, end });
+            previousWasSpace = true;
+          }
+
+          return;
+        }
+
+        index.normalized += part;
+        index.map.push({ start, end });
+        previousWasSpace = false;
+      });
+    }
+
+    for (let offset = 0; offset < text.length; ) {
+      const codePoint = text.codePointAt(offset);
+      const character = String.fromCodePoint(codePoint);
+      const characterLength = character.length;
+      const normalizedCharacter = normalizeSearchCharacter(character);
+      const characterIsWord = /[\p{L}\p{N}]/u.test(normalizedCharacter);
+      const searchCharacter =
+        normalizedCharacter && loose && !characterIsWord
+          ? " "
+          : normalizedCharacter;
+
+      appendSearchCharacter(
+        searchCharacter,
+        offset,
+        offset + characterLength
+      );
+
+      offset += characterLength;
+    }
+
+    if (index.normalized.endsWith(" ")) {
+      index.normalized = index.normalized.slice(0, -1);
+      index.map.pop();
+    }
+
+    return index;
+  }
+
+  function getTextNodesWithOffsets(root) {
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    const textNodes = [];
+    let combinedText = "";
+    let textNode = walker.nextNode();
+
+    while (textNode) {
+      const text = textNode.nodeValue || "";
+
+      if (text) {
+        textNodes.push({
+          node: textNode,
+          start: combinedText.length,
+          end: combinedText.length + text.length,
+        });
+        combinedText += text;
+      }
+
+      textNode = walker.nextNode();
+    }
+
+    return { combinedText, textNodes };
+  }
+
+  function findQuoteRange(combinedText, quoteText) {
+    const strategies = [
+      {
+        contentIndex: createSearchIndex(combinedText),
+        quoteIndex: createSearchIndex(quoteText),
+      },
+      {
+        contentIndex: createSearchIndex(combinedText, true),
+        quoteIndex: createSearchIndex(quoteText, true),
+      },
+    ];
+
+    for (const strategy of strategies) {
+      const needle = strategy.quoteIndex.normalized.trim();
+
+      if (!needle) continue;
+
+      const matchStart = strategy.contentIndex.normalized.indexOf(needle);
+
+      if (matchStart === -1) continue;
+
+      const matchEnd = matchStart + needle.length - 1;
+      let rangeStart = strategy.contentIndex.map[matchStart]?.start ?? 0;
+      let rangeEnd =
+        strategy.contentIndex.map[matchEnd]?.end ?? combinedText.length;
+
+      while (rangeStart < rangeEnd && /\s/u.test(combinedText[rangeStart])) {
+        rangeStart += 1;
+      }
+
+      while (rangeEnd > rangeStart && /\s/u.test(combinedText[rangeEnd - 1])) {
+        rangeEnd -= 1;
+      }
+
+      return { start: rangeStart, end: rangeEnd };
+    }
+
+    return null;
+  }
+
+  function markTextNodeSegment(textNode, startOffset, endOffset) {
+    if (!textNode.parentNode || startOffset >= endOffset) return null;
+
+    const selectedText = (textNode.nodeValue || "").slice(startOffset, endOffset);
+
+    if (!/\S/u.test(selectedText)) return null;
+
+    const range = document.createRange();
+    range.setStart(textNode, startOffset);
+    range.setEnd(textNode, endOffset);
+
+    const mark = document.createElement("span");
+    mark.className = "reply-selection-mark";
+    range.surroundContents(mark);
+    range.detach();
+
+    return mark;
+  }
+
+  function markTextRangeAcrossNodes(textNodes, rangeStart, rangeEnd) {
+    const createdMarks = [];
+
+    textNodes.forEach(({ node, start, end }) => {
+      if (end <= rangeStart || start >= rangeEnd) return;
+
+      const startOffset = Math.max(0, rangeStart - start);
+      const endOffset = Math.min(node.nodeValue?.length || 0, rangeEnd - start);
+      const mark = markTextNodeSegment(node, startOffset, endOffset);
+
+      if (mark) {
+        createdMarks.push(mark);
+      }
+    });
+
+    return createdMarks;
+  }
+
+  function scrollToSelectionMarks(marks) {
+    if (marks.length === 0) return;
+
+    const middleMark = marks[Math.floor(marks.length / 2)];
+    middleMark.scrollIntoView({ behavior: "smooth", block: "center" });
+  }
+
+  function scheduleSelectionHighlightClear() {
+    window.clearTimeout(highlightTimeoutRef.current);
+
+    highlightTimeoutRef.current = window.setTimeout(() => {
+      clearReplySelectionMarks(document);
+      setHighlightedMessageId(null);
+    }, 2400);
+  }
+
+  function flashWholeMessage(messageId) {
     setHighlightedMessageId(messageId);
 
-    window.setTimeout(() => {
+    window.clearTimeout(highlightTimeoutRef.current);
+    highlightTimeoutRef.current = window.setTimeout(() => {
       setHighlightedMessageId((currentId) =>
         currentId === messageId ? null : currentId
       );
     }, 1400);
+  }
+
+  function highlightSelectedTextInMessage(messageId, highlightText) {
+    const target = messageRefs.current[messageId];
+    const messageContent = target?.querySelector(".message-content");
+    const selectedText = (highlightText || "").trim();
+
+    clearReplySelectionMarks(document);
+
+    if (!messageContent || !selectedText) return false;
+
+    const { combinedText, textNodes } = getTextNodesWithOffsets(messageContent);
+    const quoteRange = findQuoteRange(combinedText, selectedText);
+
+    if (!quoteRange || quoteRange.start >= quoteRange.end) return false;
+
+    try {
+      const marks = markTextRangeAcrossNodes(
+        textNodes,
+        quoteRange.start,
+        quoteRange.end
+      );
+
+      if (marks.length === 0) return false;
+
+      scrollToSelectionMarks(marks);
+      scheduleSelectionHighlightClear();
+
+      return true;
+    } catch {
+      clearReplySelectionMarks(document);
+      return false;
+    }
+  }
+
+  function jumpToMessage(messageId, highlightText = "") {
+    const target = messageRefs.current[messageId];
+
+    if (!target) return;
+
+    clearReplySelectionMarks(document);
+    setHighlightedMessageId(null);
+    target.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    if (highlightText) {
+      window.setTimeout(() => {
+        const highlighted = highlightSelectedTextInMessage(messageId, highlightText);
+
+        if (!highlighted) {
+          flashWholeMessage(messageId);
+        }
+      }, 220);
+
+      return;
+    }
+
+    flashWholeMessage(messageId);
   }
 
   async function handleChecklistExtraction() {
@@ -1231,7 +1493,9 @@ function App() {
                               : ""
                           }`}
                           dir={isArabicText(message.replyTo.content) ? "rtl" : "ltr"}
-                          onClick={() => jumpToMessage(message.replyTo.id)}
+                          onClick={() =>
+                            jumpToMessage(message.replyTo.id, message.replyTo.content)
+                          }
                           title="Jump to original message"
                         >
                           <span>{getReplyLabel(message.replyTo)}</span>
@@ -1365,7 +1629,9 @@ function App() {
                       isArabicText(replyTarget.content) ? "reply-preview-rtl" : ""
                     }`}
                     dir={isArabicText(replyTarget.content) ? "rtl" : "ltr"}
-                    onClick={() => jumpToMessage(replyTarget.id)}
+                    onClick={() =>
+                      jumpToMessage(replyTarget.id, replyTarget.content)
+                    }
                   >
                     <span>{getReplyLabel(replyTarget)}</span>
                     <p>{getReplyPreview(replyTarget)}</p>
