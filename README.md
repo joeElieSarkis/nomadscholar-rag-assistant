@@ -208,6 +208,16 @@ Frontend app:
 http://localhost:5173
 ```
 
+Optional frontend environment override:
+
+```bash
+copy frontend\.env.example frontend\.env
+```
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
 ## Usage
 
 ### Chat
@@ -355,6 +365,7 @@ data/
 tests/
 frontend/
 .env.example
+frontend/.env.example
 README.md
 ```
 
@@ -367,7 +378,7 @@ __pycache__/
 frontend/node_modules/
 ```
 
-Depending on submission requirements, `vectorstore/` can either be committed for convenience or regenerated locally with:
+The local `vectorstore/` directory is ignored by Git and can be regenerated with:
 
 ```bash
 python ingest.py

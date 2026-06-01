@@ -1,6 +1,6 @@
 TITLE: DAAD Admission Requirements for Germany
 SOURCE: DAAD official guidance on admission requirements
-URL: https://www.daad.de/en/studying-in-germany/requirements/admission-requirements/
+URL: https://www.daad.de/en/studying-in-germany/requirements/overview/
 
 CONTENT:
 Students who want to study in Germany usually need a recognized higher education entrance qualification for undergraduate study or a relevant previous degree for graduate study.

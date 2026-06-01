@@ -1,5 +1,7 @@
 import os
 import re
+from functools import lru_cache
+from pathlib import Path
 
 from dotenv import load_dotenv
 from langchain_chroma import Chroma
@@ -11,15 +13,16 @@ from prompts import ANSWER_TEMPLATE, SYSTEM_PROMPT
 from structured_outputs import ApplicationChecklist
 
 
-load_dotenv()
+BASE_DIR = Path(__file__).resolve().parent
+load_dotenv(BASE_DIR / ".env", override=True)
 
-
-VECTORSTORE_DIR = "vectorstore"
+VECTORSTORE_DIR = str(BASE_DIR / "vectorstore")
 COLLECTION_NAME = "nomadscholar_kb"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
 
 
+@lru_cache(maxsize=1)
 def get_llm():
     api_key = os.getenv("GOOGLE_API_KEY")
 
@@ -35,6 +38,7 @@ def get_llm():
     )
 
 
+@lru_cache(maxsize=1)
 def get_vectorstore():
     embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
 
@@ -58,6 +62,105 @@ def format_documents(documents):
         )
 
     return "\n\n".join(formatted_documents)
+
+
+def collect_sources(documents):
+    sources = []
+
+    for document in documents:
+        title = document.metadata.get("title") or document.metadata.get(
+            "source_file",
+            "Unknown source",
+        )
+
+        if title not in sources:
+            sources.append(title)
+
+    return sources
+
+
+def clean_document_text(document):
+    lines = []
+
+    for line in document.page_content.splitlines():
+        stripped_line = line.strip()
+
+        if not stripped_line:
+            continue
+
+        if stripped_line.startswith(("TITLE:", "SOURCE:", "URL:", "CONTENT:")):
+            continue
+
+        lines.append(stripped_line)
+
+    return " ".join(lines)
+
+
+def is_arabic_text(text):
+    return bool(re.search(r"[\u0600-\u06FF]", text or ""))
+
+
+def is_quota_error(error):
+    error_message = str(error)
+
+    return "RESOURCE_EXHAUSTED" in error_message or "429" in error_message
+
+
+def build_retrieval_fallback_answer(question, documents):
+    """
+    Return a transparent answer when retrieval works but the LLM provider is
+    temporarily quota-limited.
+    """
+    source_summaries = []
+    seen_titles = set()
+
+    for document in documents:
+        title = document.metadata.get("title", "Retrieved source")
+
+        if title in seen_titles:
+            continue
+
+        seen_titles.add(title)
+        text = clean_document_text(document)
+
+        if not text:
+            continue
+
+        snippet = text[:420].rstrip()
+
+        if len(text) > len(snippet):
+            snippet += "..."
+
+        source_summaries.append((title, snippet))
+
+        if len(source_summaries) == 3:
+            break
+
+    if is_arabic_text(question):
+        intro = (
+            "وصلت خدمة توليد الإجابة إلى حد الاستخدام مؤقتاً، لكن نظام الاسترجاع "
+            "وجد مصادر ذات صلة من قاعدة المعرفة. هذه أهم المعلومات المسترجعة:"
+        )
+        reminder = "جرّب مرة أخرى بعد قليل للحصول على صياغة كاملة، وتأكد دائماً من المصدر الرسمي."
+    else:
+        intro = (
+            "The generation model is temporarily quota-limited, but retrieval is working. "
+            "Here is the most relevant guidance found in the knowledge base:"
+        )
+        reminder = "Try again shortly for a fully generated answer, and always verify final details from the official source."
+
+    if not source_summaries:
+        return (
+            "The generation model is temporarily quota-limited, and no useful retrieved "
+            "context was available for a fallback answer. Please try again shortly."
+        )
+
+    bullets = [
+        f"- {title}: {snippet}"
+        for title, snippet in source_summaries
+    ]
+
+    return "\n\n".join([intro, "\n".join(bullets), reminder])
 
 
 def format_chat_history(history):
@@ -112,9 +215,12 @@ def is_small_talk(question):
         "how r u",
         "how are u",
         "how is it going",
+        "how s it going",
         "how's it going",
+        "hows it going",
         "whats up",
         "what's up",
+        "what s up",
         "thank you",
         "thanks",
         "thank u",
@@ -212,23 +318,117 @@ STUDY_LOCATION_PATTERNS = {
 }
 
 
+FOLLOW_UP_KEYWORDS = {
+    "also",
+    "arabic",
+    "can you explain",
+    "can you summarize",
+    "checklist",
+    "continue",
+    "deadline",
+    "deadlines",
+    "english",
+    "explain it",
+    "explain more",
+    "how about",
+    "more",
+    "next steps",
+    "requirements",
+    "say it",
+    "same",
+    "summarize",
+    "summary",
+    "tell me more",
+    "them",
+    "these",
+    "those",
+    "translate",
+    "what about",
+    "what does it mean",
+    "what else",
+    "what is it",
+    "what next",
+    "why",
+    "بالعربي",
+    "بالانجليزي",
+    "بالإنجليزي",
+    "ترجم",
+    "ترجمة",
+    "فسر",
+    "لخص",
+    "ملخص",
+    "كمان",
+}
+
+
+OUT_OF_SCOPE_KEYWORDS = {
+    "basketball",
+    "bitcoin",
+    "code",
+    "coding",
+    "crypto",
+    "football",
+    "javascript",
+    "movie",
+    "news",
+    "python",
+    "recipe",
+    "restaurant",
+    "stock",
+    "stocks",
+    "weather",
+}
+
+
+def contains_any_keyword(normalized_question, keywords):
+    for keyword in keywords:
+        if not keyword:
+            continue
+
+        keyword_has_arabic = re.search(r"[\u0600-\u06FF]", keyword)
+        keyword_is_phrase = " " in keyword or "'" in keyword or "%" in keyword
+
+        if keyword_has_arabic or keyword_is_phrase:
+            if keyword in normalized_question:
+                return True
+            continue
+
+        if re.search(rf"\b{re.escape(keyword)}\b", normalized_question):
+            return True
+
+    return False
+
+
 def is_in_scope_question(question, history=None, image_text=""):
     """
     Decide whether a text-only question should use the admissions RAG knowledge base.
 
-    Uploaded files and follow-up turns are allowed through because the relevant
-    context may be in the file or previous conversation.
+    Uploaded files are allowed through because the relevant context may be in
+    the file. Follow-up turns are allowed only when the new message still looks
+    related to applications, or when it clearly refers back to the previous
+    admissions conversation.
     """
-    if image_text or history:
+    if image_text:
         return True
 
     normalized_question = normalize_question(question)
 
-    return (
-        any(keyword in normalized_question for keyword in DOMAIN_KEYWORDS)
-        or any(keyword in normalized_question for keyword in PROVIDER_KEYWORDS)
-        or any(pattern in normalized_question for pattern in STUDY_LOCATION_PATTERNS)
+    has_domain_signal = (
+        contains_any_keyword(normalized_question, DOMAIN_KEYWORDS)
+        or contains_any_keyword(normalized_question, PROVIDER_KEYWORDS)
+        or contains_any_keyword(normalized_question, STUDY_LOCATION_PATTERNS)
     )
+
+    if has_domain_signal:
+        return True
+
+    if contains_any_keyword(normalized_question, OUT_OF_SCOPE_KEYWORDS):
+        return False
+
+    if history and contains_any_keyword(normalized_question, FOLLOW_UP_KEYWORDS):
+        return True
+
+    return False
 
 
 def answer_question(question, history=None, image_text=""):
@@ -300,6 +500,7 @@ def answer_question(question, history=None, image_text=""):
 
     context = format_documents(retrieved_documents)
     chat_history = format_chat_history(history)
+    sources = collect_sources(retrieved_documents)
 
     prompt = ChatPromptTemplate.from_messages(
         [
@@ -311,25 +512,24 @@ def answer_question(question, history=None, image_text=""):
     llm = get_llm()
     chain = prompt | llm
 
-    response = chain.invoke(
-        {
-            "chat_history": chat_history,
-            "context": context,
-            "image_text": image_text or "No uploaded file text provided.",
-            "question": question,
-        }
-    )
-
-    sources = []
-
-    for document in retrieved_documents:
-        title = document.metadata.get("title") or document.metadata.get(
-            "source_file",
-            "Unknown source",
+    try:
+        response = chain.invoke(
+            {
+                "chat_history": chat_history,
+                "context": context,
+                "image_text": image_text or "No uploaded file text provided.",
+                "question": question,
+            }
         )
+    except Exception as error:
+        if is_quota_error(error):
+            return {
+                "answer": build_retrieval_fallback_answer(question, retrieved_documents),
+                "sources": sources,
+                "retrieved_context": context,
+            }
 
-        if title not in sources:
-            sources.append(title)
+        raise
 
     return {
         "answer": response.content,

@@ -1,6 +1,6 @@
 TITLE: EducationUSA Lebanon Advising
-SOURCE: EducationUSA Lebanon official advising information
-URL: https://educationusa.state.gov/centers/educationusa-lebanon
+SOURCE: AMIDEAST Lebanon / EducationUSA advising information
+URL: https://www.amideast.org/lebanon/study-in-the-usa/study-in-the-usa
 
 CONTENT:
 EducationUSA Lebanon provides advising services for students in Lebanon who are interested in studying in the United States.

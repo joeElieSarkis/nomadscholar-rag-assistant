@@ -1,3 +1,4 @@
+import shutil
 from pathlib import Path
 
 from langchain_chroma import Chroma
@@ -6,8 +7,9 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
-DATA_DIR = "data"
-VECTORSTORE_DIR = "vectorstore"
+BASE_DIR = Path(__file__).resolve().parent
+DATA_DIR = BASE_DIR / "data"
+VECTORSTORE_DIR = str(BASE_DIR / "vectorstore")
 COLLECTION_NAME = "nomadscholar_kb"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
@@ -87,6 +89,10 @@ def build_vectorstore():
 
     print("Loading multilingual embedding model...")
     embeddings = HuggingFaceEmbeddings(model_name=EMBEDDING_MODEL)
+
+    if Path(VECTORSTORE_DIR).exists():
+        print("Removing existing vectorstore...")
+        shutil.rmtree(VECTORSTORE_DIR)
 
     print("Building Chroma vectorstore...")
     Chroma.from_documents(

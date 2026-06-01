@@ -39,10 +39,10 @@ def preprocess_image(image_path):
 
     grayscale = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    height, width = grayscale.shape
+    _, width = grayscale.shape
 
-    if width < 1200:
-        scale_factor = 1200 / width
+    if width < 1600:
+        scale_factor = 1600 / width
         grayscale = cv2.resize(
             grayscale,
             None,
@@ -72,8 +72,11 @@ def extract_text_from_image(image_path, languages=None):
 
     processed_path = preprocess_image(path)
 
-    reader = get_ocr_reader(languages=languages)
-    results = reader.readtext(processed_path, detail=0, paragraph=True)
+    try:
+        reader = get_ocr_reader(languages=languages)
+        results = reader.readtext(processed_path, detail=0, paragraph=True)
+    finally:
+        Path(processed_path).unlink(missing_ok=True)
 
     extracted_text = "\n".join(results).strip()
 

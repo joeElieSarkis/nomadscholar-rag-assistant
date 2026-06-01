@@ -1,16 +1,47 @@
-# React + Vite
+# NomadScholar AI Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React/Vite interface for NomadScholar AI, a bilingual scholarship and admissions RAG assistant.
 
-Currently, two official plugins are available:
+## Features
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- Multi-chat interface with local chat history
+- English and Arabic message support
+- Selected-text replies with jump/highlight navigation
+- Image and digital PDF attachment flow
+- Retrieved source display
+- Message copy and edit/regenerate actions
+- Checklist extraction panel with PDF export
+- Light and dark themes
 
-## React Compiler
+## Setup
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Install dependencies:
 
-## Expanding the ESLint configuration
+```bash
+npm install
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Start the frontend:
+
+```bash
+npm run dev
+```
+
+The app expects the FastAPI backend at:
+
+```text
+http://127.0.0.1:8000
+```
+
+To use a different backend URL, create a frontend environment file and set:
+
+```env
+VITE_API_BASE_URL=http://127.0.0.1:8000
+```
+
+## Checks
+
+```bash
+npm run lint
+npm run build
+```

@@ -1,8 +1,12 @@
+import sys
+from pathlib import Path
+
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
 
-VECTORSTORE_DIR = "vectorstore"
+BASE_DIR = Path(__file__).resolve().parent
+VECTORSTORE_DIR = str(BASE_DIR / "vectorstore")
 COLLECTION_NAME = "nomadscholar_kb"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 
@@ -35,6 +39,9 @@ def test_query(vectorstore, question: str):
 
 
 if __name__ == "__main__":
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
+
     test_questions = [
         "What documents do I need for a DAAD scholarship?",
         "Can Lebanese students get advising for studying in the United States?",
