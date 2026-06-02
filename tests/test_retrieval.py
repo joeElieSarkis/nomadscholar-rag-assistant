@@ -1,11 +1,14 @@
 import sys
 from pathlib import Path
 
+
+BASE_DIR = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(BASE_DIR))
+
 from langchain_chroma import Chroma
 from langchain_huggingface import HuggingFaceEmbeddings
 
 
-BASE_DIR = Path(__file__).resolve().parent
 VECTORSTORE_DIR = str(BASE_DIR / "vectorstore")
 COLLECTION_NAME = "nomadscholar_kb"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
