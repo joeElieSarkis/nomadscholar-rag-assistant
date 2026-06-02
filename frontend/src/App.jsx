@@ -4,8 +4,12 @@ import jsPDF from "jspdf";
 import "./App.css";
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000";
+const ARABIC_PDF_FONT_NAME = "NotoSansArabicPdf";
+const ARABIC_PDF_FONT_FILE = "NotoSansArabic-Regular.ttf";
+const ARABIC_PDF_FONT_URL = `${import.meta.env.BASE_URL}fonts/${ARABIC_PDF_FONT_FILE}`;
 
 const DEFAULT_MESSAGES = [];
+let cachedArabicCanvasFontPromise = null;
 
 function createMessageId() {
   return crypto.randomUUID();
@@ -129,6 +133,229 @@ function SunIcon() {
 
 function isArabicText(text) {
   return /[\u0600-\u06FF]/.test(text || "");
+}
+
+function checklistContainsArabic(checklist) {
+  if (!checklist) return false;
+
+  return [
+    checklist.deadline,
+    ...(checklist.required_documents || []),
+    ...(checklist.eligibility_notes || []),
+    ...(checklist.missing_information || []),
+    ...(checklist.next_steps || []),
+  ].some((value) => isArabicText(String(value || "")));
+}
+
+async function loadArabicCanvasFont() {
+  if (!("FontFace" in window) || !document.fonts) return;
+
+  if (!cachedArabicCanvasFontPromise) {
+    cachedArabicCanvasFontPromise = new FontFace(
+      ARABIC_PDF_FONT_NAME,
+      `url(${ARABIC_PDF_FONT_URL})`
+    )
+      .load()
+      .then((font) => {
+        document.fonts.add(font);
+        return document.fonts.ready;
+      });
+  }
+
+  await cachedArabicCanvasFontPromise;
+}
+
+async function downloadArabicChecklistPdf(checklist, fileName) {
+  await loadArabicCanvasFont();
+
+  const doc = new jsPDF({
+    orientation: "portrait",
+    unit: "pt",
+    format: "a4",
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const scale = 2;
+  const margin = 48;
+  const textWidth = pageWidth - margin * 2;
+  const footerY = pageHeight - 24;
+  const pages = [];
+  let currentPage = null;
+
+  function createCanvasPage() {
+    const canvas = document.createElement("canvas");
+    canvas.width = pageWidth * scale;
+    canvas.height = pageHeight * scale;
+
+    const context = canvas.getContext("2d");
+    context.scale(scale, scale);
+    context.fillStyle = "#fbf8f1";
+    context.fillRect(0, 0, pageWidth, pageHeight);
+
+    currentPage = { canvas, context, y: 56 };
+    pages.push(currentPage);
+  }
+
+  function setCanvasFont(size, weight = 400, arabic = false) {
+    const family = arabic
+      ? `"${ARABIC_PDF_FONT_NAME}", "Noto Sans Arabic", Tahoma, Arial, sans-serif`
+      : `Inter, Arial, sans-serif`;
+
+    currentPage.context.font = `${weight} ${size}px ${family}`;
+  }
+
+  function wrapCanvasText(text, maxWidth) {
+    const cleanedText = String(text || "Not mentioned").replace(/\s+/g, " ").trim();
+    const words = cleanedText ? cleanedText.split(" ") : ["Not mentioned"];
+    const lines = [];
+    let line = "";
+
+    words.forEach((word) => {
+      const testLine = line ? `${line} ${word}` : word;
+
+      if (currentPage.context.measureText(testLine).width <= maxWidth) {
+        line = testLine;
+        return;
+      }
+
+      if (line) {
+        lines.push(line);
+        line = word;
+      } else {
+        lines.push(word);
+      }
+    });
+
+    if (line) lines.push(line);
+
+    return lines;
+  }
+
+  function ensureCanvasSpace(height) {
+    if (!currentPage) {
+      createCanvasPage();
+      return;
+    }
+
+    if (currentPage.y + height > footerY - 18) {
+      createCanvasPage();
+    }
+  }
+
+  function drawCanvasTextLine(text, options = {}) {
+    const { indent = 0, size = 12, weight = 400, color = "#17212b" } = options;
+    const lineIsArabic = isArabicText(text);
+    const x = lineIsArabic ? pageWidth - margin - indent : margin + indent;
+
+    setCanvasFont(size, weight, lineIsArabic);
+    currentPage.context.fillStyle = color;
+    currentPage.context.direction = lineIsArabic ? "rtl" : "ltr";
+    currentPage.context.textAlign = lineIsArabic ? "right" : "left";
+    currentPage.context.textBaseline = "alphabetic";
+    currentPage.context.fillText(text, x, currentPage.y);
+  }
+
+  function addCanvasTitle() {
+    ensureCanvasSpace(60);
+    drawCanvasTextLine("NomadScholar AI Checklist", {
+      size: 22,
+      weight: 800,
+      color: "#0d1b2a",
+    });
+    currentPage.y += 26;
+    drawCanvasTextLine("Generated from extracted scholarship/admissions information.", {
+      size: 11,
+      color: "#647181",
+    });
+    currentPage.y += 32;
+  }
+
+  function addCanvasSection(title) {
+    ensureCanvasSpace(30);
+    drawCanvasTextLine(title.toUpperCase(), {
+      size: 11,
+      weight: 800,
+      color: "#235789",
+    });
+    currentPage.y += 20;
+  }
+
+  function addCanvasParagraph(text) {
+    const paragraph = text || "Not mentioned";
+    const lineIsArabic = isArabicText(paragraph);
+
+    setCanvasFont(12, 400, lineIsArabic);
+
+    const lines = wrapCanvasText(paragraph, textWidth);
+
+    lines.forEach((line) => {
+      ensureCanvasSpace(18);
+      drawCanvasTextLine(line, { size: 12 });
+      currentPage.y += 18;
+    });
+
+    currentPage.y += 8;
+  }
+
+  function addCanvasList(items) {
+    if (!items || items.length === 0) {
+      addCanvasParagraph("None detected.");
+      return;
+    }
+
+    items.forEach((item) => {
+      const itemText = String(item || "").trim() || "Not mentioned";
+      const lineIsArabic = isArabicText(itemText);
+      const bulletText = lineIsArabic ? `• ${itemText}` : `- ${itemText}`;
+
+      setCanvasFont(12, 400, lineIsArabic);
+
+      const lines = wrapCanvasText(bulletText, textWidth - 18);
+
+      lines.forEach((line) => {
+        ensureCanvasSpace(18);
+        drawCanvasTextLine(line, { indent: 18, size: 12 });
+        currentPage.y += 18;
+      });
+
+      currentPage.y += 4;
+    });
+
+    currentPage.y += 8;
+  }
+
+  createCanvasPage();
+  addCanvasTitle();
+  addCanvasSection("Deadline");
+  addCanvasParagraph(checklist.deadline || "Not mentioned");
+  addCanvasSection("Required documents");
+  addCanvasList(checklist.required_documents);
+  addCanvasSection("Eligibility notes");
+  addCanvasList(checklist.eligibility_notes);
+  addCanvasSection("Missing information");
+  addCanvasList(checklist.missing_information);
+  addCanvasSection("Next steps");
+  addCanvasList(checklist.next_steps);
+
+  pages.forEach((page, pageIndex) => {
+    page.context.direction = "ltr";
+    page.context.textAlign = "left";
+    page.context.fillStyle = "#8291a2";
+    page.context.font = "400 9px Arial, sans-serif";
+    page.context.fillText(
+      `NomadScholar AI - Page ${pageIndex + 1} of ${pages.length}`,
+      margin,
+      footerY
+    );
+  });
+
+  pages.forEach((page, pageIndex) => {
+    if (pageIndex > 0) doc.addPage();
+    doc.addImage(page.canvas.toDataURL("image/png"), "PNG", 0, 0, pageWidth, pageHeight);
+  });
+
+  doc.save(`${fileName}.pdf`);
 }
 
 function isLowQualityTitle(text) {
@@ -1116,8 +1343,16 @@ function App() {
     return `${baseName}-${date}`;
   }
 
-  function downloadChecklistPdf() {
+  async function downloadChecklistPdf() {
     if (!checklistResult || checklistResult.error) return;
+
+    if (checklistContainsArabic(checklistResult)) {
+      await downloadArabicChecklistPdf(
+        checklistResult,
+        createChecklistFileName(checklistResult)
+      );
+      return;
+    }
 
     const doc = new jsPDF({
       orientation: "portrait",
@@ -1155,17 +1390,28 @@ function App() {
       y += 18;
     }
 
-    function addParagraph(text) {
-      addPageIfNeeded(32);
+    function setReadableFontForText() {
       doc.setFont("helvetica", "normal");
+    }
+
+    function addTextLine(line, indent = 0) {
+      setReadableFontForText(line);
+      doc.text(line, margin + indent, y);
+    }
+
+    function addParagraph(text) {
+      const paragraph = text || "Not mentioned";
+
+      addPageIfNeeded(32);
+      setReadableFontForText(paragraph);
       doc.setFontSize(10);
       doc.setTextColor(23, 33, 43);
 
-      const lines = doc.splitTextToSize(text || "Not mentioned", maxWidth);
+      const lines = doc.splitTextToSize(paragraph, maxWidth);
 
       lines.forEach((line) => {
         addPageIfNeeded(15);
-        doc.text(line, margin, y);
+        addTextLine(line);
         y += 14;
       });
 
@@ -1178,21 +1424,24 @@ function App() {
         return;
       }
 
-      doc.setFont("helvetica", "normal");
       doc.setFontSize(10);
       doc.setTextColor(23, 33, 43);
 
       items.forEach((item) => {
-        const lines = doc.splitTextToSize(String(item), maxWidth - 18);
+        const itemText = String(item || "").trim() || "Not mentioned";
+
+        setReadableFontForText(itemText);
+
+        const lines = doc.splitTextToSize(
+          `- ${itemText}`,
+          maxWidth - 18
+        );
+
         addPageIfNeeded(18);
 
-        doc.text("•", margin, y);
-        doc.text(lines[0], margin + 18, y);
-        y += 14;
-
-        lines.slice(1).forEach((line) => {
+        lines.forEach((line) => {
           addPageIfNeeded(15);
-          doc.text(line, margin + 18, y);
+          addTextLine(line, 18);
           y += 14;
         });
 
