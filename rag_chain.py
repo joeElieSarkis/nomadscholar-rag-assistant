@@ -274,6 +274,9 @@ DOMAIN_KEYWORDS = {
     "eligibility",
     "financial aid",
     "funding",
+    "advising",
+    "adviser",
+    "advisor",
     "letter of recommendation",
     "master",
     "masters",
@@ -302,6 +305,7 @@ PROVIDER_KEYWORDS = {
     "campus france",
     "common app",
     "daad",
+    "education usa",
     "educationusa",
     "erasmus",
 }
@@ -313,8 +317,14 @@ STUDY_LOCATION_PATTERNS = {
     "master's in france",
     "study in france",
     "study in germany",
+    "study in the united states",
+    "study in the u.s.",
+    "study in the usa",
     "studying in france",
     "studying in germany",
+    "studying in the united states",
+    "studying in the u.s.",
+    "studying in the usa",
 }
 
 

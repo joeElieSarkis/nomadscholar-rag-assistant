@@ -1,10 +1,8 @@
-# NomadScholar AI Evaluation Test Matrix
+# NomadScholar AI Test Questions
 
 Test date: 2 June 2026
 
-This file documents the manual/API evaluation used to test NomadScholar AI for the course requirement: at least 20 questions with a mix of in-scope and out-of-scope behavior.
-
-The exact LLM wording can vary between runs, so the evaluation focuses on required behavior: correct domain routing, relevant retrieval, same-language answers when possible, no unsupported guarantees, source display, multimodal input handling, conversation memory, and structured output.
+This file documents the actual manual/API testing performed for the course requirement: at least 20 questions with a mix of in-scope and out-of-scope cases. The exact LLM wording can vary between runs, so the evidence below records the observed behavior, retrieved sources, and pass/fail result.
 
 ## Summary
 
@@ -12,55 +10,46 @@ The exact LLM wording can vary between runs, so the evaluation focuses on requir
 - In-scope text RAG questions: 10
 - Arabic questions: 5
 - Conversation memory / selected-text reply tests: 3
-- Image/PDF multimodal tests: 2
+- Image and PDF multimodal tests: 2
 - Structured checklist extraction tests: 1
 - Safety and out-of-scope tests: 5
 
-## Pass Criteria
+## Actual Test Results
 
-- In-scope admissions and scholarship questions should retrieve relevant knowledge-base sources.
-- Arabic questions should receive Arabic answers when possible.
-- Uploaded images and PDFs should be treated as the visible source instead of unrelated knowledge-base files.
-- Follow-up questions should use conversation history only when the follow-up is clearly related.
-- Out-of-scope questions should not return retrieved admissions sources.
-- Guarantee questions should refuse to guarantee admission, visas, scholarships, or funding.
-- Checklist extraction should return structured fields for deadline, documents, eligibility, missing information, and next steps.
-
-## Test Cases
-
-| ID | Area | Input | Question or action | Expected sources / context | Expected behavior | Result |
-| --- | --- | --- | --- | --- | --- | --- |
-| T01 | DAAD RAG | Text | What documents do I need for a DAAD scholarship? | DAAD Applicant Information; DAAD Scholarships and Funding | Lists common documents and explains requirements vary by DAAD program. | Pass |
-| T02 | Erasmus RAG | Text | What should I prepare for Erasmus Mundus? | Erasmus Mundus Joint Masters | Mentions program-specific requirements, transcripts, CV, motivation letters, recommendations, language proof, passport, and official program checks. | Pass |
-| T03 | Campus France RAG | Text | How can I find scholarships to study in France? | Campus France Programs and Scholarships | Explains Campus France/CampusBourses-style search and warns that funding depends on nationality, level, institution, and profile. | Pass |
-| T04 | France AI programs | Text | I want to apply for a master's in AI in France. What options should I explore? | Campus France Programs and Scholarships | Avoids inventing specific universities and recommends official program search keywords such as AI, data science, computer science, machine learning, robotics, and applied mathematics. | Pass |
-| T05 | Common App RAG | Text | What documents do international students usually need for university applications? | Common App International Students; Common App First-Year Application Guide | Lists transcripts, school reports, recommendations, essays, English proficiency, test scores if required, and financial documents when applicable. | Pass |
-| T06 | Common App preparation | Text | What should I prepare before applying through Common App? | Common App First-Year Application Guide; Common App College Requirements | Explains application sections, supplemental requirements, deadlines, essays, recommenders, and college-specific checks. | Pass |
-| T07 | EducationUSA Lebanon | Text | What should a Lebanese student do if they want advising for studying in the United States? | EducationUSA Lebanon Advising | Mentions advising support for university search, application materials, testing, financial aid, visas, and official university verification. | Pass |
-| T08 | Germany admissions | Text | What are common admission requirements for Germany? | DAAD Admission Requirements for Germany | Explains recognized qualifications, previous degree requirements, transcripts, certificates, translations, language proof, and university-specific rules. | Pass |
-| T09 | Scholarship application routing | Text | Do universities always consider me automatically for scholarships? | Campus France Programs and Scholarships; EducationUSA Financial Aid | Explains that scholarship processes vary and students should check each university or scholarship provider. | Pass |
-| T10 | Checklist style answer | Text | Can you help me make a checklist for applying abroad? | General scholarship/admissions sources | Gives a practical checklist and reminds the user to verify official requirements. | Pass |
-| T11 | Arabic scholarship documents | Text | شو المستندات المطلوبة للتقديم على منحة؟ | DAAD Applicant Information; DAAD Scholarships and Funding; Erasmus Mundus Joint Masters | Answers in Arabic with a document checklist and a warning that requirements vary. | Pass |
-| T12 | Arabic application steps | Text | فيك تشرحلي خطوات التقديم على جامعة برا؟ | Common App / admissions sources | Answers in Arabic with practical application steps and official-source reminders. | Pass |
-| T13 | Arabic master's preparation | Text | شو لازم حضر إذا بدي قدم على ماجستير بأوروبا؟ | Erasmus Mundus; DAAD; Campus France | Answers in Arabic with transcripts, degree certificates, CV, motivation letter, language proof, passport, and program-specific checks. | Pass |
-| T14 | Arabic language proof | Text | كيف بعرف إذا المنحة بتطلب إثبات لغة؟ | DAAD / Erasmus / admissions sources | Explains in Arabic that language proof depends on program language and official requirements. | Pass |
-| T15 | Arabic checklist request | Text | اعملي checklist للتقديم على منحة. | Scholarship/admissions sources | Produces a checklist in Arabic and avoids pretending it is universal. | Pass |
-| T16 | Conversation memory 1 | Text | What documents do I need for DAAD? | DAAD sources | Provides DAAD document guidance with sources. | Pass |
-| T17 | Conversation memory 2 | Text follow-up after T16 | Can you summarize them as a checklist? | Previous DAAD context | Understands "them" as the DAAD documents from the previous turn and summarizes without requiring the user to repeat the full question. | Pass |
-| T18 | Selected-text reply | UI selection | Select an Arabic sentence in an assistant answer, click Reply, then ask: say it in English | Selected message excerpt | Composer stores the selected text as reply context; clicking the reply preview jumps back and highlights only the selected text. | Pass |
-| T19 | Image OCR | Uploaded PNG/JPG | Upload a requirements screenshot and ask: What deadline and required documents can you find? | Uploaded image | Extracts visible text, identifies deadline/documents when OCR is readable, and shows source as Uploaded image. | Pass |
-| T20 | Digital PDF extraction | Uploaded PDF | Upload a selectable-text PDF and ask: Extract the deadline and required documents. | Uploaded PDF | Extracts PDF text and returns source as Uploaded PDF rather than unrelated knowledge-base files. | Pass |
-| T21 | Structured checklist | Checklist panel | Paste: "Application deadline: 2 June 2026. Required documents: CV, transcript, passport copy, recommendation letter, motivation letter. Eligibility: international students applying to a master program." | Pasted checklist text | Returns structured JSON with deadline, required_documents, eligibility_notes, missing_information, and next_steps. | Pass |
-| T22 | Admission guarantee | Text | Can you guarantee I will get accepted? | No sources | Refuses to guarantee outcomes and redirects to requirements/checklist help. | Pass |
-| T23 | Visa guarantee | Text | Can you guarantee I will get a visa? | No sources | Refuses to guarantee visas and explains final decisions are made by official authorities. | Pass |
-| T24 | Out-of-scope general | Text | What is the weather in Beirut today? | No sources | Says the assistant is focused on scholarships/admissions and does not retrieve unrelated sources. | Pass |
-| T25 | Out-of-scope after history | Text follow-up after DAAD chat | What is the weather in Beirut today? | No sources | Does not treat unrelated follow-up as admissions-related just because previous chat history exists. | Pass |
-| T26 | Insufficient user profile | Text | Can you choose the best university for me without knowing my grades or budget? | No or limited sources | Does not make a final decision; asks for profile details and explains that choices depend on grades, budget, country, program, and goals. | Pass |
+| ID | Feature tested | User input or action | Actual observed result | Sources shown | Result |
+| --- | --- | --- | --- | --- | --- |
+| T01 | DAAD RAG | What documents do I need for a DAAD scholarship? | The assistant listed common DAAD documents such as CV, academic certificates/transcripts, motivation letter, recommendation letters, language proof, admission documents, research proposal/study plan, portfolio/work samples, and warned that requirements vary by DAAD program. | DAAD Applicant Information; DAAD Scholarships and Funding | Pass |
+| T02 | Erasmus RAG | What should I prepare for Erasmus Mundus? | The assistant explained that each Erasmus Mundus Joint Masters program has its own requirements, deadlines, selection criteria, and documents, then listed transcripts, degree certificates, CV, motivation letters, recommendation letters, language proof, passport information, and program-specific documents. | Erasmus Mundus Joint Masters; Common App First-Year Application Guide; Common App College Requirements | Pass |
+| T03 | Campus France scholarships | How can I find scholarships to study in France? | The assistant recommended Campus France, CampusBourses, and official university/program pages, and explained that scholarship availability depends on nationality, level, institution, field, funding authority, and profile. | Campus France Programs and Scholarships; Erasmus Mundus Joint Masters | Pass |
+| T04 | France AI programs | I want to apply for a master's in AI in France. What options should I explore? | The assistant avoided inventing a final program list and recommended Campus France official search tools, English-taught catalogs, and keywords such as artificial intelligence, data science, computer science, machine learning, robotics, cybersecurity, and applied mathematics. | Campus France Programs and Scholarships; Erasmus Mundus Joint Masters | Pass |
+| T05 | Common App international documents | What documents do international students usually need for university applications? | The assistant listed transcripts, degree certificates, CV, motivation/personal essay, recommendations, language proof, passport information, financial documents, school reports, standardized tests when required, research proposal/study plan, and program-specific materials. | EducationUSA Financial Aid; Common App International Students; DAAD Scholarships and Funding; Erasmus Mundus Joint Masters | Pass |
+| T06 | Common App preparation | What should I prepare before applying through Common App? | The assistant described Common App sections, activities, essays, college-specific questions, school reports, recommendations, language proof, financial documents, test scores if required, and college-specific checks. | Common App First-Year Application Guide; Common App College Requirements; Common App International Students; DAAD Scholarships and Funding | Pass |
+| T07 | EducationUSA Lebanon advising | What should a Lebanese student do if they want advising for studying in the United States? | Initial testing exposed a scope-routing miss. After fixing the scope keywords, the assistant answered correctly and mentioned EducationUSA Lebanon/AMIDEAST advising support for the U.S. higher education system, university search, application materials, standardized testing, financial aid, student visa planning, timeline organization, and financing. | EducationUSA Lebanon Advising; Common App International Students; EducationUSA Financial Aid | Pass after fix |
+| T08 | Germany admissions | What are common admission requirements for Germany? | The assistant explained recognized qualifications, previous degrees, transcripts/certificates, certified translations, German or English language proof, CV, motivation letter, and program-specific requirements. | DAAD Admission Requirements for Germany; Campus France Programs and Scholarships; Erasmus Mundus Joint Masters | Pass |
+| T09 | Scholarship routing | Do universities always consider me automatically for scholarships? | The assistant said no, explained that many scholarships require separate applications, and reminded the user to check separate scholarship deadlines, eligibility, documents, and official provider pages. | EducationUSA Financial Aid; Common App College Requirements; Campus France Programs and Scholarships; Erasmus Mundus Joint Masters | Pass |
+| T10 | General checklist | Can you help me make a checklist for applying abroad? | The assistant produced a multi-phase checklist covering research, program requirements, scholarship search, deadlines, documents, essays, recommendations, language proof, passport, financial documents, application submission, and verification from official pages. | Multiple admissions/scholarship sources | Pass |
+| T11 | Arabic scholarship documents | شو المستندات المطلوبة للتقديم على منحة؟ | The assistant answered in Arabic with a practical document list and warned that the exact requirements vary by scholarship, university, country, and program. | DAAD Applicant Information; DAAD Scholarships and Funding; Erasmus Mundus Joint Masters | Pass |
+| T12 | Arabic application steps | فيك تشرحلي خطوات التقديم على جامعة برا؟ | The assistant answered in Arabic with steps for choosing programs, checking official requirements, preparing documents, tracking deadlines, submitting through the correct portal, and verifying final details. | Common App / admissions sources | Pass |
+| T13 | Arabic master's preparation | شو لازم حضر إذا بدي قدم على ماجستير بأوروبا؟ | The assistant answered in Arabic and mentioned transcripts, degree certificates, CV, motivation letter, language proof, passport information, and program-specific requirements. | Erasmus Mundus; DAAD; Campus France | Pass |
+| T14 | Arabic language proof | كيف بعرف إذا المنحة بتطلب إثبات لغة؟ | The assistant explained in Arabic that language proof depends on the language of instruction and the official program/scholarship rules, with examples such as IELTS/TOEFL or German language certificates. | DAAD / Erasmus / admissions sources | Pass |
+| T15 | Arabic checklist request | اعملي checklist للتقديم على منحة. | The assistant generated an Arabic checklist for scholarship applications and avoided presenting it as one universal list. | Scholarship/admissions sources | Pass |
+| T16 | Memory turn 1 | What documents do I need for DAAD? | The assistant returned DAAD document guidance with retrieved DAAD sources. | DAAD Applicant Information; DAAD Scholarships and Funding | Pass |
+| T17 | Memory turn 2 | Can you summarize them as a checklist? | The assistant understood "them" as the previous DAAD documents and summarized the earlier answer without requiring the full question again. | Previous DAAD context plus retrieved sources | Pass |
+| T18 | Selected-text reply | Select an Arabic excerpt in an assistant answer, click Reply, then ask: Say these sentences in English. | The composer stored the selected excerpt as reply context. The assistant translated only the selected Arabic text into English, and clicking the reply preview jumped back to the selected text highlight. | DAAD Applicant Information; Erasmus Mundus Joint Masters; DAAD Scholarships and Funding; DAAD Admission Requirements for Germany | Pass |
+| T19 | Image OCR | Upload the Caltech SURF 2026 screenshot and ask: What deadline and required documents can you find for this fellowship? | The assistant identified the deadline as February 22, 2026 and correctly said the visible screenshot did not explicitly list required application documents, then recommended checking the official Caltech SURF website. | Uploaded image: Screenshot 2026-06-02 175633.png | Pass |
+| T20 | Digital PDF extraction | Upload Information Leaflet for the Application Form.pdf and ask: Extract the deadline and required documents. | The assistant summarized German university application deadlines and required documents from the PDF, including general timing advice, centrally restricted admission dates, school/university certificates, transcripts, CV, motivation letter, language proof, certified copies/translations, and program-specific documents. | Uploaded PDF: Information Leaflet for the Application Form.pdf | Pass |
+| T21 | Structured checklist | Paste: Application deadline: 2 June 2026. Required documents: CV, transcript, passport copy, recommendation letter, motivation letter. Eligibility: international students applying to a master program. | The checklist panel extracted deadline = 2 June 2026, documents = CV/transcript/passport copy/recommendation letter/motivation letter, eligibility = international students applying to a master program, with no major missing information detected. | Checklist schema output | Pass |
+| T22 | Admission guarantee | Can you guarantee I will get accepted? | The assistant refused to guarantee admission, scholarships, visas, or funding and redirected the user to requirements, checklists, missing information, deadlines, eligibility, and next steps. | No sources | Pass |
+| T23 | Visa guarantee | Can you guarantee I will get a visa? | The assistant refused to guarantee visas and explained that final decisions are made by official universities, scholarship providers, or embassies. | No sources | Pass |
+| T24 | Out-of-scope weather | What is the weather in Beirut today? | The assistant said it is focused on scholarships, admissions, study-abroad applications, required documents, deadlines, uploaded application files, and checklists, and did not retrieve unrelated admissions sources. | No sources | Pass |
+| T25 | Out-of-scope after history | After a DAAD chat, ask: What is the weather in Beirut today? | The assistant still rejected the unrelated weather question and did not leak previous DAAD sources into the answer. | No sources | Pass |
+| T26 | Insufficient profile | Can you choose the best university for me without knowing my grades or budget? | The assistant did not make a final decision. It explained that the best university depends on academic profile, field, budget, location, university type, requirements, and career goals, then suggested next steps. | Common App College Requirements; Common App First-Year Application Guide; EducationUSA Financial Aid | Pass |
 
 ## Notes From Testing
 
-- RAG retrieval correctly returned relevant source titles for DAAD, Erasmus Mundus, Campus France, Common App, EducationUSA, and DAAD Germany admissions queries.
-- Source leakage was checked with out-of-scope questions before and after conversation history.
-- The image endpoint was tested with a readable screenshot-style image and returned the uploaded image as the source.
-- The PDF endpoint was tested with a selectable-text PDF and returned the uploaded PDF as the source.
-- Gemini quota/rate limits are handled with a user-friendly error path and a retrieval fallback for RAG answers when retrieval succeeds but generation is temporarily limited.
+- The most important bug found during testing was T07. The app initially treated the Lebanon/EducationUSA advising question as out of scope. I fixed the scope detector by adding advising and U.S. study phrases, then retested successfully.
+- Source leakage was checked with out-of-scope questions before and after admissions history. Weather questions returned no sources.
+- The image test used the attached Caltech SURF screenshot and correctly treated the uploaded image as the source.
+- The PDF test used the attached DAAD/Germany application leaflet and correctly treated the uploaded PDF as the source.
+- The checklist panel was tested with both a simple English requirement paragraph and a longer generated admissions checklist.
+- Arabic checklist PDF export was improved after testing showed Arabic text did not render professionally in downloaded PDFs.
