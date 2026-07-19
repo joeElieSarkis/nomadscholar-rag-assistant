@@ -106,6 +106,30 @@ def is_quota_error(error):
     return "RESOURCE_EXHAUSTED" in error_message or "429" in error_message
 
 
+def extract_llm_text(response):
+    content = response.content
+
+    if isinstance(content, str):
+        return content
+
+    if isinstance(content, list):
+        text_parts = []
+
+        for block in content:
+            if isinstance(block, str):
+                text_parts.append(block)
+                continue
+
+            if isinstance(block, dict):
+                block_text = block.get("text")
+                if block_text:
+                    text_parts.append(block_text)
+
+        return "\n".join(text_parts).strip()
+
+    return str(content)
+
+
 def build_retrieval_fallback_answer(question, documents):
     """
     Return a transparent answer when retrieval works but the LLM provider is
@@ -542,7 +566,7 @@ def answer_question(question, history=None, image_text=""):
         raise
 
     return {
-        "answer": response.content,
+        "answer": extract_llm_text(response),
         "sources": sources,
         "retrieved_context": context,
     }
