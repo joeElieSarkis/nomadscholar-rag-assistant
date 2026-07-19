@@ -19,7 +19,7 @@ load_dotenv(BASE_DIR / ".env", override=True)
 VECTORSTORE_DIR = str(BASE_DIR / "vectorstore")
 COLLECTION_NAME = "nomadscholar_kb"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
 
 @lru_cache(maxsize=1)

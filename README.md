@@ -136,7 +136,7 @@ Add your Gemini API key to `.env`:
 
 ```env
 GOOGLE_API_KEY=your_google_api_key_here
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.5-flash
 ```
 
 Do not commit `.env`. It contains private credentials.
